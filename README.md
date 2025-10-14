@@ -1,12 +1,13 @@
 # env-type-generator
 
-[![npm version](https://badge.fury.io/js/env-type-generator.svg)](https://www.npmjs.com/package/env-type-generator)
-[![Downloads](https://img.shields.io/npm/dm/env-type-generator.svg)](https://www.npmjs.com/package/env-type-generator)
+[![npm version](https://badge.fury.io/js/@kitiumai%2Fenv-type-generator.svg)](https://www.npmjs.com/package/@kitiumai/env-type-generator)
+[![CI](https://github.com/kitium-ai/env-type-generator/actions/workflows/ci.yml/badge.svg)](https://github.com/kitium-ai/env-type-generator/actions/workflows/ci.yml)
+[![Downloads](https://img.shields.io/npm/dm/@kitiumai/env-type-generator.svg)](https://www.npmjs.com/package/@kitiumai/env-type-generator)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5-blue.svg)](https://www.typescriptlang.org/)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D16.0.0-brightgreen.svg)](https://nodejs.org/)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/ashishyd/env-type-generator/pulls)
-[![GitHub stars](https://img.shields.io/github/stars/ashishyd/env-type-generator.svg?style=social)](https://github.com/ashishyd/env-type-generator)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/kitium-ai/env-type-generator/pulls)
+[![GitHub stars](https://img.shields.io/github/stars/kitium-ai/env-type-generator.svg?style=social)](https://github.com/kitium-ai/env-type-generator)
 
 > **Zero-config TypeScript type generator for .env files** with Zod validation, watch mode, and IDE autocomplete
 
@@ -23,6 +24,7 @@ Stop writing types for `process.env` manually. Let `env-type-generator` do it fo
 - [Examples](#examples)
 - [Framework Integration](#framework-integration)
 - [CI/CD Integration](#cicd-integration)
+- [GitHub Actions](#github-actions)
 - [Configuration](#configuration)
 - [API](#api)
 - [Troubleshooting](#troubleshooting)
@@ -45,13 +47,13 @@ Stop writing types for `process.env` manually. Let `env-type-generator` do it fo
 ## Installation
 
 ```bash
-npm install --save-dev env-type-generator
+npm install --save-dev @kitiumai/env-type-generator
 
 # or
-yarn add -D env-type-generator
+yarn add -D @kitiumai/env-type-generator
 
 # or
-pnpm add -D env-type-generator
+pnpm add -D @kitiumai/env-type-generator
 ```
 
 ## Quick Start
@@ -207,7 +209,7 @@ npx env-type-gen --config env-type.config.js
 ### Programmatic API
 
 ```typescript
-import { GeneratorService } from 'env-type-generator';
+import { GeneratorService } from '@kitiumai/env-type-generator';
 
 const service = new GeneratorService();
 
@@ -357,6 +359,50 @@ Add the generated types to your `tsconfig.json`:
 }
 ```
 
+## GitHub Actions
+
+This repository includes comprehensive CI/CD workflows:
+
+### CI Workflow
+Runs on every push and pull request to main/master branch:
+- **Linting**: ESLint and Prettier checks
+- **Type Checking**: TypeScript compilation
+- **Testing**: Multi-version tests (Node 16, 18, 20) across OS (Ubuntu, Windows, macOS)
+- **Build**: Ensures project builds successfully
+- **Integration Tests**: End-to-end CLI testing with type generation and validation
+
+### Publish Workflow
+Automatically publishes to npm on GitHub releases:
+- Runs all quality checks
+- Publishes with npm provenance for enhanced security
+- Creates deployment summary
+
+### Security Workflows
+- **CodeQL**: Weekly security scans for vulnerabilities
+- **Dependency Review**: Automated review on pull requests
+
+### Adding to Your Project
+
+Add similar CI/CD to your project using env-type-generator:
+
+```yaml
+# .github/workflows/ci.yml
+name: CI
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npx env-type-gen --parse-types
+      - run: npm test
+```
+
 ## Comparison with Other Tools
 
 | Feature | env-type-generator | t3-env | envalid | ts-dotenv |
@@ -426,7 +472,7 @@ Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md)
 
 ## License
 
-MIT © [ashishyd](https://github.com/ashishyd)
+MIT © [kitium-ai](https://github.com/kitium-ai)
 
 ## Acknowledgments
 
@@ -435,9 +481,9 @@ MIT © [ashishyd](https://github.com/ashishyd)
 
 ## Support
 
--  [Report issues](https://github.com/ashishyd/env-type-generator/issues)
--  [Discussions](https://github.com/ashishyd/env-type-generator/discussions)
--  [Star on GitHub](https://github.com/ashishyd/env-type-generator)
+-  [Report issues](https://github.com/kitium-ai/env-type-generator/issues)
+-  [Discussions](https://github.com/kitium-ai/env-type-generator/discussions)
+-  [Star on GitHub](https://github.com/kitium-ai/env-type-generator)
 
 ---
 

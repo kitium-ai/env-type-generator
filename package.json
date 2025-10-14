@@ -1,5 +1,5 @@
 {
-  "name": "env-type-generator",
+  "name": "@kitiumai/env-type-generator",
   "version": "1.0.1",
   "description": "Zero-config TypeScript type generator for .env files with Zod validation, watch mode, and IDE autocomplete support",
   "main": "dist/index.js",
@@ -68,12 +68,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/ashishyd/env-type-generator.git"
+    "url": "git@github.com:kitium-ai/env-type-generator.git"
   },
   "bugs": {
-    "url": "https://github.com/ashishyd/env-type-generator/issues"
+    "url": "https://github.com/kitium-ai/env-type-generator/issues"
   },
-  "homepage": "https://github.com/ashishyd/env-type-generator#readme",
+  "homepage": "https://github.com/kitium-ai/env-type-generator#readme",
   "engines": {
     "node": ">=16.0.0"
   },

@@ -33,6 +33,22 @@ For feature requests or improvements:
 9. **Commit your changes** with a clear commit message
 10. **Push to your fork** and submit a pull request
 
+#### CI Checks
+
+All pull requests must pass automated CI checks:
+- ✅ ESLint and Prettier formatting
+- ✅ TypeScript type checking
+- ✅ Test suite (Node 16, 18, 20)
+- ✅ Build verification
+- ✅ Integration tests
+- ✅ Dependency review
+- ✅ CodeQL security analysis
+
+You can run all checks locally:
+```bash
+npm run lint && npm run format:check && npm run type-check && npm test && npm run build
+```
+
 ## Development Setup
 
 ```bash
@@ -119,10 +135,21 @@ Examples:
 ## Review Process
 
 1. All pull requests require review before merging
-2. Ensure all CI checks pass
+2. **Ensure all CI checks pass** - PRs with failing checks won't be merged
 3. Address any feedback from reviewers
 4. Keep your branch up to date with master
 5. Squash commits if requested
+
+### CI/CD Pipeline
+
+The project uses GitHub Actions for continuous integration:
+
+- **Continuous Integration**: Runs on all PRs and pushes to main
+- **Publish Workflow**: Triggered on GitHub releases
+- **Security Scanning**: CodeQL runs weekly and on PRs
+- **Dependency Review**: Automated security checks on dependency changes
+
+View workflow status: [Actions](https://github.com/kitium-ai/env-type-generator/actions)
 
 ## Questions?
 
