@@ -74,6 +74,9 @@
     "url": "https://github.com/kitium-ai/env-type-generator/issues"
   },
   "homepage": "https://github.com/kitium-ai/env-type-generator#readme",
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
     "node": ">=16.0.0"
   },
