@@ -7,9 +7,9 @@
 import { Command } from 'commander';
 import * as path from 'path';
 import * as fs from 'fs';
-import chalk from 'chalk';
-import { GeneratorService } from './services/generator-service';
-import { GeneratorConfig, ValidationLibrary } from './types';
+import { GeneratorService } from './services/generator-service.js';
+import { getEnvTypeLogger } from './logger.js';
+import type { GeneratorConfig, ValidationLibrary } from './types/index.js';
 
 const program = new Command();
 
@@ -33,6 +33,8 @@ program
   .option('-w, --watch', 'Watch mode - regenerate on file changes', false)
   .option('-c, --config <path>', 'Path to config file')
   .action(async (options) => {
+    const logger = getEnvTypeLogger('cli');
+
     try {
       let config: GeneratorConfig;
 
@@ -57,40 +59,58 @@ program
       validateConfig(config);
 
       // Create generator service
-      const service = new GeneratorService();
+      const service = new GeneratorService({
+        logger: logger.child({ scope: 'generator-service' }),
+      });
 
       if (config.watch) {
-        console.log(chalk.blue('👀 Watch mode enabled...'));
-        console.log(chalk.gray(`Watching: ${config.envFiles.join(', ')}`));
-        console.log(chalk.gray('Press Ctrl+C to stop\n'));
+        logger.info('Watch mode enabled', { envFiles: config.envFiles, output: config.outputPath });
 
-        service.watch(config);
+        try {
+          service.watch(config);
+        } catch (error) {
+          logger.error(
+            'Failed to start watch mode',
+            { error: (error as Error).message },
+            error as Error
+          );
+          process.exit(1);
+        }
 
-        console.log(chalk.green('✓ Initial types generated'));
-        console.log(chalk.gray(`Output: ${config.outputPath}\n`));
+        logger.info('Initial types generated', { output: config.outputPath });
+        if (config.validationLib && config.validationLib !== 'none' && config.validationOutput) {
+          logger.info('Initial validation schema generated', { output: config.validationOutput });
+        }
 
         // Keep process running
         process.on('SIGINT', () => {
-          console.log(chalk.yellow('\n\nStopping watcher...'));
+          logger.info('Stopping watcher due to SIGINT');
           void service.stopWatch().then(() => {
-            console.log(chalk.green('✓ Watcher stopped'));
+            logger.info('Watcher stopped gracefully');
             process.exit(0);
           });
         });
       } else {
-        console.log(chalk.blue('🔧 Generating types...'));
+        logger.info('Generating env types', {
+          envFiles: config.envFiles,
+          output: config.outputPath,
+        });
 
-        service.generate(config);
+        const result = service.generate(config);
 
-        console.log(chalk.green('✓ Types generated successfully!'));
-        console.log(chalk.gray(`Output: ${config.outputPath}`));
+        if (!result.success) {
+          logger.error('Type generation failed', { output: config.outputPath }, result.error);
+          process.exit(1);
+        }
+
+        logger.info('Types generated successfully', { output: config.outputPath });
 
         if (config.validationLib && config.validationLib !== 'none') {
-          console.log(chalk.gray(`Validation: ${config.validationOutput}`));
+          logger.info('Validation schema generated', { output: config.validationOutput });
         }
       }
     } catch (error) {
-      console.error(chalk.red('✗ Error:'), (error as Error).message);
+      logger.error('CLI execution failed', { error: (error as Error).message }, error as Error);
       process.exit(1);
     }
   });
@@ -106,7 +126,6 @@ function loadConfigFile(configPath: string): GeneratorConfig {
   }
 
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const config = require(absolutePath) as GeneratorConfig;
     return config;
   } catch (error) {

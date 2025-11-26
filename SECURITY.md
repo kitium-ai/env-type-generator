@@ -74,6 +74,7 @@ The following are **not** considered security vulnerabilities:
 ## Security Updates
 
 Security updates will be released as patch versions and announced via:
+
 - GitHub Security Advisories
 - npm package updates
 - Repository README

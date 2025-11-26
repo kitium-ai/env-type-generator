@@ -3,12 +3,12 @@
  * Generates Zod/Yup/Joi schemas for runtime validation
  */
 
-import { EnvVariable, ValidationLibrary, GeneratorOptions } from '../types';
-import { GenerationError } from '../utils/errors';
-import { EnvParser } from '../parsers/env-parser';
+import type { EnvVariable, ValidationLibrary, GeneratorOptions } from '../types/index.js';
+import { GenerationError } from '../utils/errors.js';
+import { EnvParser } from '../parsers/env-parser.js';
 
 export class ValidationGenerator {
-  private parser: EnvParser;
+  private readonly parser: EnvParser;
 
   constructor() {
     this.parser = new EnvParser();

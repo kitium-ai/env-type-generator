@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "include": ["src/**/*.ts", "src/**/*.test.ts", "src/**/*.spec.ts"],
+  "exclude": [],
+  "compilerOptions": {
+    "module": "Node16",
+    "moduleResolution": "node16"
+  }
+}

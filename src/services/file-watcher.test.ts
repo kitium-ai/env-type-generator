@@ -4,13 +4,44 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { FileWatcher } from './file-watcher';
+import { vi } from 'vitest';
+import { FileWatcher, type FileChangeCallback } from './file-watcher';
 import { EnvTypeGeneratorError } from '../utils/errors';
 
-describe('FileWatcher', () => {
+vi.mock('../logger', () => {
+  const mockLogger = {
+    info: vi.fn(),
+    debug: vi.fn(),
+    error: vi.fn(),
+    child: vi.fn().mockReturnThis(),
+  };
+
+  return {
+    getEnvTypeLogger: vi.fn(() => mockLogger),
+  };
+});
+
+describe.sequential('FileWatcher', () => {
   let watcher: FileWatcher;
   const testDir = path.join(__dirname, '../../test-watch-fixtures');
   const testFile = path.join(testDir, 'test.env');
+  let activeTimers: NodeJS.Timeout[] = [];
+
+  const safeAppend = (content: string): void => {
+    if (!fs.existsSync(testFile)) {
+      fs.writeFileSync(testFile, 'KEY=value');
+    }
+    fs.appendFileSync(testFile, content);
+  };
+
+  const schedule = (fn: () => void, delay: number): NodeJS.Timeout => {
+    const timer = setTimeout(() => {
+      fn();
+      activeTimers = activeTimers.filter((t) => t !== timer);
+    }, delay);
+    activeTimers.push(timer);
+    return timer;
+  };
 
   beforeAll(() => {
     if (!fs.existsSync(testDir)) {
@@ -27,6 +58,8 @@ describe('FileWatcher', () => {
   });
 
   afterEach(async () => {
+    activeTimers.forEach((timer) => clearTimeout(timer));
+    activeTimers = [];
     await watcher.stop();
   });
 
@@ -53,8 +86,8 @@ describe('FileWatcher', () => {
       });
 
       // Trigger file change
-      setTimeout(() => {
-        fs.appendFileSync(testFile, '\nNEW_KEY=value');
+      schedule(() => {
+        safeAppend('\nNEW_KEY=value');
       }, 200);
     });
 
@@ -70,9 +103,9 @@ describe('FileWatcher', () => {
       });
 
       // Trigger multiple rapid changes
-      setTimeout(() => fs.appendFileSync(testFile, '\nKEY1=value1'), 50);
-      setTimeout(() => fs.appendFileSync(testFile, '\nKEY2=value2'), 100);
-      setTimeout(() => fs.appendFileSync(testFile, '\nKEY3=value3'), 150);
+      schedule(() => safeAppend('\nKEY1=value1'), 50);
+      schedule(() => safeAppend('\nKEY2=value2'), 100);
+      schedule(() => safeAppend('\nKEY3=value3'), 150);
 
       // Check after debounce period
       setTimeout(() => {
@@ -83,21 +116,22 @@ describe('FileWatcher', () => {
     });
 
     it('should throw error if watcher is already running', () => {
+      const handler = vi.fn<FileChangeCallback>();
       watcher.watch({
         files: [testFile],
-        onChanged: jest.fn(),
+        onChanged: handler,
       });
 
       expect(() =>
         watcher.watch({
           files: [testFile],
-          onChanged: jest.fn(),
+          onChanged: handler,
         })
       ).toThrow(EnvTypeGeneratorError);
     });
 
     it('should handle async callbacks', (done) => {
-      const asyncCallback = jest.fn(async () => {
+      const asyncCallback = vi.fn<FileChangeCallback>(async () => {
         await new Promise((resolve) => setTimeout(resolve, 50));
       });
 
@@ -107,8 +141,8 @@ describe('FileWatcher', () => {
         debounceMs: 100,
       });
 
-      setTimeout(() => {
-        fs.appendFileSync(testFile, '\nASYNC_KEY=value');
+      schedule(() => {
+        safeAppend('\nASYNC_KEY=value');
       }, 200);
 
       setTimeout(() => {
@@ -120,9 +154,10 @@ describe('FileWatcher', () => {
 
   describe('stop', () => {
     it('should stop watching files', async () => {
+      const handler = vi.fn<FileChangeCallback>();
       watcher.watch({
         files: [testFile],
-        onChanged: jest.fn(),
+        onChanged: handler,
       });
 
       expect(watcher.isWatching()).toBe(true);
@@ -138,7 +173,7 @@ describe('FileWatcher', () => {
     });
 
     it('should clear debounce timers on stop', (done) => {
-      const callback = jest.fn();
+      const callback = vi.fn<FileChangeCallback>();
 
       watcher.watch({
         files: [testFile],
@@ -147,19 +182,19 @@ describe('FileWatcher', () => {
       });
 
       // Trigger change
-      setTimeout(() => {
-        fs.appendFileSync(testFile, '\nKEY=value');
+      schedule(() => {
+        safeAppend('\nKEY=value');
       }, 100);
 
       // Stop before debounce completes
-      setTimeout(async () => {
-        await watcher.stop();
-
-        // Wait and check callback wasn't called
-        setTimeout(() => {
-          expect(callback).not.toHaveBeenCalled();
-          done();
-        }, 300);
+      schedule(() => {
+        void watcher.stop().then(() => {
+          // Wait and check callback wasn't called
+          schedule(() => {
+            expect(callback).not.toHaveBeenCalled();
+            done();
+          }, 300);
+        });
       }, 200);
     });
   });
@@ -170,9 +205,10 @@ describe('FileWatcher', () => {
     });
 
     it('should return true when watching', () => {
+      const handler = vi.fn<FileChangeCallback>();
       watcher.watch({
         files: [testFile],
-        onChanged: jest.fn(),
+        onChanged: handler,
       });
 
       expect(watcher.isWatching()).toBe(true);

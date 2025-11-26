@@ -3,12 +3,12 @@
  * Generates .d.ts files with type-safe environment variables
  */
 
-import { EnvVariable, TypeInfo, GeneratorOptions } from '../types';
-import { GenerationError } from '../utils/errors';
-import { EnvParser } from '../parsers/env-parser';
+import type { EnvVariable, TypeInfo, GeneratorOptions } from '../types/index.js';
+import { GenerationError } from '../utils/errors.js';
+import { EnvParser } from '../parsers/env-parser.js';
 
 export class TypeGenerator {
-  private parser: EnvParser;
+  private readonly parser: EnvParser;
 
   constructor() {
     this.parser = new EnvParser();

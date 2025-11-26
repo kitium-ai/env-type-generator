@@ -7,6 +7,7 @@ Thank you for your interest in contributing! We welcome contributions from the c
 ### Reporting Bugs
 
 If you find a bug, please open an issue with:
+
 - A clear, descriptive title
 - Steps to reproduce the issue
 - Expected vs actual behavior
@@ -16,6 +17,7 @@ If you find a bug, please open an issue with:
 ### Suggesting Enhancements
 
 For feature requests or improvements:
+
 - Open an issue describing the enhancement
 - Explain why this feature would be useful
 - Provide examples of how it would work
@@ -36,6 +38,7 @@ For feature requests or improvements:
 #### CI Checks
 
 All pull requests must pass automated CI checks:
+
 - ✅ ESLint and Prettier formatting
 - ✅ TypeScript type checking
 - ✅ Test suite (Node 16, 18, 20)
@@ -45,6 +48,7 @@ All pull requests must pass automated CI checks:
 - ✅ CodeQL security analysis
 
 You can run all checks locally:
+
 ```bash
 npm run lint && npm run format:check && npm run type-check && npm test && npm run build
 ```
@@ -107,6 +111,7 @@ src/
 - Test both success and error cases
 
 Example test:
+
 ```typescript
 it('should parse environment variables correctly', () => {
   // Arrange
@@ -128,6 +133,7 @@ it('should parse environment variables correctly', () => {
 - Add detailed description if needed
 
 Examples:
+
 - `Add support for multiline environment variables`
 - `Fix parsing of quoted values with escape sequences`
 - `Update documentation for watch mode`

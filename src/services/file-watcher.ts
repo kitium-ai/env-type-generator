@@ -5,19 +5,23 @@
 
 import * as chokidar from 'chokidar';
 import * as path from 'path';
-import { EnvTypeGeneratorError } from '../utils/errors';
+import type { ILogger } from '@kitiumai/logger';
+import { getEnvTypeLogger } from '../logger.js';
+import { EnvTypeGeneratorError } from '../utils/errors.js';
 
 export type FileChangeCallback = (filePath: string) => void | Promise<void>;
 
-export interface WatcherOptions {
+export type WatcherOptions = {
   files: string[];
   onChanged: FileChangeCallback;
   debounceMs?: number;
-}
+};
 
 export class FileWatcher {
   private watcher: chokidar.FSWatcher | null = null;
-  private debounceTimers: Map<string, NodeJS.Timeout> = new Map();
+  private readonly debounceTimers: Map<string, NodeJS.Timeout> = new Map();
+
+  constructor(private readonly logger: ILogger = getEnvTypeLogger('file-watcher')) {}
 
   /**
    * Start watching files
@@ -31,6 +35,8 @@ export class FileWatcher {
 
     const absolutePaths = files.map((file) => path.resolve(file));
 
+    this.logger.info('Starting file watcher', { files: absolutePaths, debounceMs });
+
     this.watcher = chokidar.watch(absolutePaths, {
       persistent: true,
       ignoreInitial: true,
@@ -41,10 +47,12 @@ export class FileWatcher {
     });
 
     this.watcher.on('change', (filePath: string) => {
+      this.logger.debug('Detected change in env file', { filePath });
       this.handleChange(filePath, onChanged, debounceMs);
     });
 
     this.watcher.on('error', (error: Error) => {
+      this.logger.error('File watcher encountered an error', { error: error.message }, error);
       throw new EnvTypeGeneratorError(`Watcher error: ${error.message}`);
     });
   }
@@ -73,6 +81,7 @@ export class FileWatcher {
     try {
       await callback(filePath);
     } catch (error) {
+      this.logger.error('Watcher callback failed', { filePath }, error as Error);
       throw new EnvTypeGeneratorError(
         `Callback execution failed for ${filePath}: ${(error as Error).message}`
       );
@@ -86,6 +95,8 @@ export class FileWatcher {
     if (!this.watcher) {
       return;
     }
+
+    this.logger.info('Stopping file watcher');
 
     // Clear all debounce timers
     for (const timer of this.debounceTimers.values()) {

@@ -2,18 +2,18 @@
  * Core type definitions for env-type-generator
  */
 
-export interface EnvVariable {
+export type EnvVariable = {
   key: string;
   value: string;
   comment?: string;
-}
+};
 
-export interface ParsedEnvFile {
+export type ParsedEnvFile = {
   variables: EnvVariable[];
   filePath: string;
-}
+};
 
-export interface GeneratorConfig {
+export type GeneratorConfig = {
   envFiles: string[];
   outputPath: string;
   validationLib?: 'zod' | 'yup' | 'joi' | 'none';
@@ -22,31 +22,32 @@ export interface GeneratorConfig {
   parseTypes?: boolean;
   strict?: boolean;
   watch?: boolean;
-}
+};
 
-export interface TypeInfo {
+export type TypeInfo = {
   name: string;
   type: string;
   required: boolean;
   parsed: boolean;
   comment?: string;
-}
+};
 
-export interface GeneratedOutput {
+export type GeneratedOutput = {
   typeDefinition: string;
+  runtimeHelper?: string;
   validationSchema?: string;
-}
+};
 
 export type ValidationLibrary = 'zod' | 'yup' | 'joi' | 'none';
 
-export interface ParserOptions {
+export type ParserOptions = {
   parseTypes?: boolean;
   requiredVars?: string[];
-}
+};
 
-export interface GeneratorOptions {
+export type GeneratorOptions = {
   parseTypes: boolean;
   validationLib: ValidationLibrary;
   requiredVars: string[];
   strict: boolean;
-}
+};

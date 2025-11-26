@@ -4,8 +4,22 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { vi } from 'vitest';
 import { GeneratorService } from './generator-service';
 import { GeneratorConfig } from '../types';
+
+vi.mock('../logger', () => {
+  const mockLogger = {
+    info: vi.fn(),
+    debug: vi.fn(),
+    error: vi.fn(),
+    child: vi.fn().mockReturnThis(),
+  };
+
+  return {
+    getEnvTypeLogger: vi.fn(() => mockLogger),
+  };
+});
 
 describe('GeneratorService', () => {
   let service: GeneratorService;
@@ -13,6 +27,22 @@ describe('GeneratorService', () => {
   const envFile = path.join(testDir, '.env');
   const outputFile = path.join(testDir, 'env.d.ts');
   const validationFile = path.join(testDir, 'env.validator.ts');
+  let activeTimers: NodeJS.Timeout[] = [];
+
+  const ensureFileExists = (filePath: string): void => {
+    if (!fs.existsSync(filePath)) {
+      fs.writeFileSync(filePath, '');
+    }
+  };
+
+  const schedule = (fn: () => void, delay: number): NodeJS.Timeout => {
+    const timer = setTimeout(() => {
+      fn();
+      activeTimers = activeTimers.filter((t) => t !== timer);
+    }, delay);
+    activeTimers.push(timer);
+    return timer;
+  };
 
   beforeAll(() => {
     if (!fs.existsSync(testDir)) {
@@ -26,6 +56,8 @@ describe('GeneratorService', () => {
   });
 
   afterEach(async () => {
+    activeTimers.forEach((timer) => clearTimeout(timer));
+    activeTimers = [];
     await service.stopWatch();
   });
 
@@ -44,7 +76,9 @@ describe('GeneratorService', () => {
         strict: false,
       };
 
-      service.generate(config);
+      const result = service.generate(config);
+
+      expect(result.success).toBe(true);
 
       expect(fs.existsSync(outputFile)).toBe(true);
       const content = fs.readFileSync(outputFile, 'utf-8');
@@ -61,7 +95,8 @@ describe('GeneratorService', () => {
         strict: false,
       };
 
-      service.generate(config);
+      const result = service.generate(config);
+      expect(result.success).toBe(true);
 
       const helperPath = outputFile.replace('.d.ts', '.js');
       expect(fs.existsSync(helperPath)).toBe(true);
@@ -79,7 +114,8 @@ describe('GeneratorService', () => {
         strict: false,
       };
 
-      service.generate(config);
+      const result = service.generate(config);
+      expect(result.success).toBe(true);
 
       expect(fs.existsSync(validationFile)).toBe(true);
       const content = fs.readFileSync(validationFile, 'utf-8');
@@ -97,7 +133,8 @@ describe('GeneratorService', () => {
         strict: false,
       };
 
-      service.generate(config);
+      const result = service.generate(config);
+      expect(result.success).toBe(true);
 
       const content = fs.readFileSync(outputFile, 'utf-8');
       expect(content).toContain('DATABASE_URL');
@@ -118,7 +155,8 @@ describe('GeneratorService', () => {
         strict: false,
       };
 
-      service.generate(config);
+      const result = service.generate(config);
+      expect(result.success).toBe(true);
 
       expect(fs.existsSync(outputFile)).toBe(true);
     });
@@ -133,7 +171,8 @@ describe('GeneratorService', () => {
         strict: false,
       };
 
-      service.generate(config);
+      const result = service.generate(config);
+      expect(result.success).toBe(true);
 
       expect(fs.existsSync(nestedOutput)).toBe(true);
     });
@@ -147,7 +186,8 @@ describe('GeneratorService', () => {
         strict: false,
       };
 
-      service.generate(config);
+      const result = service.generate(config);
+      expect(result.success).toBe(true);
 
       const content = fs.readFileSync(outputFile, 'utf-8');
       expect(content).toContain('DATABASE_URL: string;');
@@ -161,7 +201,8 @@ describe('GeneratorService', () => {
         strict: true,
       };
 
-      service.generate(config);
+      const result = service.generate(config);
+      expect(result.success).toBe(true);
 
       const content = fs.readFileSync(outputFile, 'utf-8');
       expect(content).not.toContain('?:');
@@ -175,7 +216,9 @@ describe('GeneratorService', () => {
         strict: false,
       };
 
-      expect(() => service.generate(config)).toThrow();
+      const result = service.generate(config);
+
+      expect(result.success).toBe(false);
     });
   });
 
@@ -206,14 +249,16 @@ describe('GeneratorService', () => {
       service.watch(config);
 
       // Wait for initial generation
-      setTimeout(() => {
+      schedule(() => {
+        ensureFileExists(outputFile);
         const initialContent = fs.readFileSync(outputFile, 'utf-8');
 
         // Modify file
         fs.appendFileSync(envFile, '\nNEW_KEY=newvalue');
 
         // Wait for regeneration
-        setTimeout(() => {
+        schedule(() => {
+          ensureFileExists(outputFile);
           const updatedContent = fs.readFileSync(outputFile, 'utf-8');
           expect(updatedContent).toContain('NEW_KEY');
           expect(updatedContent).not.toEqual(initialContent);

@@ -3,11 +3,11 @@
  * Exports public API for programmatic usage
  */
 
-export { GeneratorService } from './services/generator-service';
-export { EnvParser } from './parsers/env-parser';
-export { TypeGenerator } from './generators/type-generator';
-export { ValidationGenerator } from './generators/validation-generator';
-export { FileWatcher } from './services/file-watcher';
+export { GeneratorService } from './services/generator-service.js';
+export { EnvParser } from './parsers/env-parser.js';
+export { TypeGenerator } from './generators/type-generator.js';
+export { ValidationGenerator } from './generators/validation-generator.js';
+export { FileWatcher } from './services/file-watcher.js';
 
 export type {
   EnvVariable,
@@ -18,7 +18,7 @@ export type {
   ValidationLibrary,
   ParserOptions,
   GeneratorOptions,
-} from './types';
+} from './types/index.js';
 
 export {
   EnvTypeGeneratorError,
@@ -26,4 +26,4 @@ export {
   ParseError,
   ValidationError,
   GenerationError,
-} from './utils/errors';
+} from './utils/errors.js';

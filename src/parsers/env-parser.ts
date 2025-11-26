@@ -5,8 +5,8 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { EnvVariable, ParsedEnvFile, ParserOptions } from '../types';
-import { FileNotFoundError, ParseError } from '../utils/errors';
+import type { EnvVariable, ParsedEnvFile, ParserOptions } from '../types/index.js';
+import { FileNotFoundError, ParseError } from '../utils/errors.js';
 
 export class EnvParser {
   /**
@@ -96,8 +96,8 @@ export class EnvParser {
     if (commentIndex > 0) {
       // Check if # is inside quotes
       const beforeComment = value.substring(0, commentIndex);
-      const singleQuotes = (beforeComment.match(/'/g) || []).length;
-      const doubleQuotes = (beforeComment.match(/"/g) || []).length;
+      const singleQuotes = (beforeComment.match(/'/g) ?? []).length;
+      const doubleQuotes = (beforeComment.match(/"/g) ?? []).length;
 
       // If quotes are balanced before #, it's a comment
       if (singleQuotes % 2 === 0 && doubleQuotes % 2 === 0) {

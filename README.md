@@ -99,17 +99,17 @@ const invalid = process.env.DATABSE_URL; // Error: Property 'DATABSE_URL' does n
 npx env-type-gen [options]
 ```
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `-e, --env-files <files...>` | Environment files to parse | `.env` |
-| `-o, --output <path>` | Output path for type definitions | `./src/types/env.d.ts` |
-| `-v, --validation-lib <library>` | Validation library (zod\|yup\|joi\|none) | `none` |
-| `-s, --validation-output <path>` | Output path for validation schema | `./src/config/env.validator.ts` |
-| `-r, --required <vars...>` | Required environment variables | `[]` |
-| `-p, --parse-types` | Parse and infer types from values | `false` |
-| `-t, --strict` | Treat all variables as required | `false` |
-| `-w, --watch` | Watch mode - regenerate on file changes | `false` |
-| `-c, --config <path>` | Path to config file | - |
+| Option                           | Description                              | Default                         |
+| -------------------------------- | ---------------------------------------- | ------------------------------- |
+| `-e, --env-files <files...>`     | Environment files to parse               | `.env`                          |
+| `-o, --output <path>`            | Output path for type definitions         | `./src/types/env.d.ts`          |
+| `-v, --validation-lib <library>` | Validation library (zod\|yup\|joi\|none) | `none`                          |
+| `-s, --validation-output <path>` | Output path for validation schema        | `./src/config/env.validator.ts` |
+| `-r, --required <vars...>`       | Required environment variables           | `[]`                            |
+| `-p, --parse-types`              | Parse and infer types from values        | `false`                         |
+| `-t, --strict`                   | Treat all variables as required          | `false`                         |
+| `-w, --watch`                    | Watch mode - regenerate on file changes  | `false`                         |
+| `-c, --config <path>`            | Path to config file                      | -                               |
 
 ### Examples
 
@@ -139,8 +139,8 @@ This will generate:
 declare namespace NodeJS {
   interface ProcessEnv {
     DATABASE_URL?: string | undefined;
-    DATABASE_POOL_SIZE?: number | undefined;  // ← Inferred as number
-    ENABLE_ANALYTICS?: boolean | undefined;    // ← Inferred as boolean
+    DATABASE_POOL_SIZE?: number | undefined; // ← Inferred as number
+    ENABLE_ANALYTICS?: boolean | undefined; // ← Inferred as boolean
   }
 }
 ```
@@ -159,8 +159,14 @@ import { z } from 'zod';
 
 export const envSchema = z.object({
   DATABASE_URL: z.string().optional(),
-  DATABASE_POOL_SIZE: z.string().transform((val) => Number(val)).optional(),
-  ENABLE_ANALYTICS: z.enum(["true", "false"]).transform((val) => val === "true").optional(),
+  DATABASE_POOL_SIZE: z
+    .string()
+    .transform((val) => Number(val))
+    .optional(),
+  ENABLE_ANALYTICS: z
+    .enum(['true', 'false'])
+    .transform((val) => val === 'true')
+    .optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -272,12 +278,14 @@ app.listen(env.PORT); // Type-safe!
 ### Without Type Parsing
 
 Input (`.env`):
+
 ```env
 DATABASE_URL=postgresql://localhost:5432/mydb
 PORT=3000
 ```
 
 Output (`env.d.ts`):
+
 ```typescript
 declare namespace NodeJS {
   interface ProcessEnv {
@@ -295,6 +303,7 @@ export declare const env: {
 ### With Type Parsing
 
 Input (`.env`):
+
 ```env
 DATABASE_URL=postgresql://localhost:5432/mydb
 PORT=3000
@@ -303,6 +312,7 @@ CONFIG={"key":"value"}
 ```
 
 Output (`env.d.ts`):
+
 ```typescript
 declare namespace NodeJS {
   interface ProcessEnv {
@@ -324,6 +334,7 @@ export declare const env: {
 ### With Comments
 
 Input (`.env`):
+
 ```env
 # Database connection string
 DATABASE_URL=postgresql://localhost:5432/mydb
@@ -333,6 +344,7 @@ DATABASE_POOL_SIZE=10
 ```
 
 Output (`env.d.ts`):
+
 ```typescript
 declare namespace NodeJS {
   interface ProcessEnv {
@@ -364,7 +376,9 @@ Add the generated types to your `tsconfig.json`:
 This repository includes comprehensive CI/CD workflows:
 
 ### CI Workflow
+
 Runs on every push and pull request to main/master branch:
+
 - **Linting**: ESLint and Prettier checks
 - **Type Checking**: TypeScript compilation
 - **Testing**: Multi-version tests (Node 16, 18, 20) across OS (Ubuntu, Windows, macOS)
@@ -372,12 +386,15 @@ Runs on every push and pull request to main/master branch:
 - **Integration Tests**: End-to-end CLI testing with type generation and validation
 
 ### Publish Workflow
+
 Automatically publishes to npm on GitHub releases:
+
 - Runs all quality checks
 - Publishes with npm provenance for enhanced security
 - Creates deployment summary
 
 ### Security Workflows
+
 - **CodeQL**: Weekly security scans for vulnerabilities
 - **Dependency Review**: Automated review on pull requests
 
@@ -405,16 +422,16 @@ jobs:
 
 ## Comparison with Other Tools
 
-| Feature | env-type-generator | t3-env | envalid | ts-dotenv |
-|---------|-------------------|--------|---------|-----------|
-| Auto-generate from .env | ✅ | ❌ | ❌ | ❌ |
-| Zero config | ✅ | ❌ | ❌ | ❌ |
-| Type inference | ✅ | ⚠️ | ⚠️ | ✅ |
-| Runtime validation | ✅ | ✅ | ✅ | ✅ |
-| Framework-agnostic | ✅ | ❌ | ✅ | ✅ |
-| Watch mode | ✅ | ❌ | ❌ | ❌ |
-| Active maintenance | ✅ | ✅ | ✅ | ❌ |
-| Weekly downloads | TBD | 501K | 200K | 3.6K |
+| Feature                 | env-type-generator | t3-env | envalid | ts-dotenv |
+| ----------------------- | ------------------ | ------ | ------- | --------- |
+| Auto-generate from .env | ✅                 | ❌     | ❌      | ❌        |
+| Zero config             | ✅                 | ❌     | ❌      | ❌        |
+| Type inference          | ✅                 | ⚠️     | ⚠️      | ✅        |
+| Runtime validation      | ✅                 | ✅     | ✅      | ✅        |
+| Framework-agnostic      | ✅                 | ❌     | ✅      | ✅        |
+| Watch mode              | ✅                 | ❌     | ❌      | ❌        |
+| Active maintenance      | ✅                 | ✅     | ✅      | ❌        |
+| Weekly downloads        | TBD                | 501K   | 200K    | 3.6K      |
 
 **Key Advantage**: We're the only tool that auto-generates types from existing .env files without requiring manual schema definition.
 
@@ -440,12 +457,14 @@ jobs:
 ## Best Practices
 
 1. **Add to git ignore**: Add generated files to `.gitignore`
+
    ```gitignore
    src/types/env.d.ts
    src/config/env.validator.ts
    ```
 
 2. **Generate in pre-build**: Add to your build pipeline
+
    ```json
    {
      "scripts": {
@@ -456,6 +475,7 @@ jobs:
    ```
 
 3. **Use strict mode in production**: Catch missing vars early
+
    ```bash
    env-type-gen --strict --required DATABASE_URL API_KEY
    ```
@@ -481,9 +501,9 @@ MIT © [kitium-ai](https://github.com/kitium-ai)
 
 ## Support
 
--  [Report issues](https://github.com/kitium-ai/env-type-generator/issues)
--  [Discussions](https://github.com/kitium-ai/env-type-generator/discussions)
--  [Star on GitHub](https://github.com/kitium-ai/env-type-generator)
+- [Report issues](https://github.com/kitium-ai/env-type-generator/issues)
+- [Discussions](https://github.com/kitium-ai/env-type-generator/discussions)
+- [Star on GitHub](https://github.com/kitium-ai/env-type-generator)
 
 ---
 
