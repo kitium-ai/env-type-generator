@@ -43,6 +43,10 @@ Stop writing types for `process.env` manually. Let `env-type-generator` do it fo
 - ✅ **Multiple Files** - Support for .env, .env.local, .env.production, etc.
 - ✅ **Framework Agnostic** - Works with any TypeScript project
 - ✅ **IDE Autocomplete** - Get IntelliSense for `process.env`
+- ✅ **Profiles & Monorepo-aware** - Select per-environment profiles and workspace roots
+- ✅ **Enterprise Compliance** - Optional secret scanning, SBOM + attestation emission
+- ✅ **Smart Cache** - Hash-based short-circuiting for CI/CD and Turbo/Nx pipelines
+- ✅ **Programmatic API** - `generateEnvTypes` + `defineEnvSchema` for build systems
 
 ## Installation
 
@@ -228,6 +232,40 @@ await service.generate({
 });
 ```
 
+### Schema-first validation + simplified API
+
+Use `defineEnvSchema` to describe defaults, enums, regex patterns, unions, and runtime transformers without worrying about the underlying validation library:
+
+```typescript
+import { defineEnvSchema, generateEnvTypes } from '@kitiumai/env-type-generator';
+
+const schema = defineEnvSchema({
+  DATABASE_URL: { required: true, description: 'Postgres connection string' },
+  FEATURE_FLAG: { enum: ['on', 'off'], defaultValue: 'off' },
+  API_KEY: { pattern: '^sk_(test|live)_[a-zA-Z0-9]{20,}$', transformer: 'trim' },
+  CLUSTER_CONFIG: { type: 'object', transformer: 'json' },
+  BOOLEAN_UNION: { union: ['boolean', 'string'] },
+});
+
+const output = generateEnvTypes({
+  envFiles: ['.env', '.env.production'],
+  outputPath: './types/env.d.ts',
+  validationLib: 'zod',
+  validationOutput: './src/config/env.schema.ts',
+  schema,
+  compliance: { scanSecrets: true, emitSbom: true, emitAttestation: true },
+});
+
+console.log('Generated types', output);
+```
+
+### Profiles, monorepos, and CI caching
+
+- **Profiles**: provide a `profiles` array in `env-type.config.js` and select one via `--profile stage` to target different `.env` surfaces and output locations.
+- **Workspace awareness**: pass `--workspace-root` (or `workspaceRoot` in config) so env files and outputs resolve from your monorepo root (Nx/Turbo/pnpm workspaces friendly).
+- **Cache keys**: generation short-circuits when the hash of env files + config is unchanged; disable with `--no-cache` when you need a forced refresh.
+- **Compliance flags**: `--scan-secrets`, `--emit-sbom`, and `--emit-attestation` add secret scanning, CycloneDX SBOMs, and checksum attestations suitable for CI pipelines.
+
 ## 🎨 Framework Integration
 
 ### Next.js
@@ -398,6 +436,13 @@ Automatically publishes to npm on GitHub releases:
 - **CodeQL**: Weekly security scans for vulnerabilities
 - **Dependency Review**: Automated review on pull requests
 
+### Supply chain & compliance options
+
+- `--scan-secrets`: Heuristically scan env values for high-risk tokens (Stripe/GitHub/JWT patterns) and optionally fail with `--fail-on-secret`.
+- `--emit-sbom [path]`: Write a CycloneDX SBOM that inventories env inputs and generated artifacts for compliance gates.
+- `--emit-attestation [path]`: Emit checksum attestations for the generated `.d.ts`, helper, and validation files to feed into provenance pipelines.
+- Structured logs: generator metrics (variable counts, enums, patterns) are emitted in logger payloads for ingestion by observability systems.
+
 ### Adding to Your Project
 
 Add similar CI/CD to your project using env-type-generator:
@@ -431,7 +476,7 @@ jobs:
 | Framework-agnostic      | ✅                 | ❌     | ✅      | ✅        |
 | Watch mode              | ✅                 | ❌     | ❌      | ❌        |
 | Active maintenance      | ✅                 | ✅     | ✅      | ❌        |
-| Weekly downloads        | TBD                | 501K   | 200K    | 3.6K      |
+| Weekly downloads        | npm badge          | 501K   | 200K    | 3.6K      |
 
 **Key Advantage**: We're the only tool that auto-generates types from existing .env files without requiring manual schema definition.
 

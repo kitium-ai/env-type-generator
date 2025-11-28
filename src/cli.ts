@@ -32,6 +32,13 @@ program
   .option('-t, --strict', 'Treat all variables as required', false)
   .option('-w, --watch', 'Watch mode - regenerate on file changes', false)
   .option('-c, --config <path>', 'Path to config file')
+  .option('-P, --profile <name>', 'Named profile from config', 'default')
+  .option('--workspace-root <path>', 'Workspace root for monorepos')
+  .option('--emit-sbom [path]', 'Generate a CycloneDX SBOM next to outputs', false)
+  .option('--emit-attestation [path]', 'Generate an attestation with file checksums', false)
+  .option('--scan-secrets', 'Scan env files for leaked secrets', false)
+  .option('--fail-on-secret', 'Exit with error when secret scan finds matches', false)
+  .option('--no-cache', 'Disable cache-based short-circuiting')
   .action(async (options) => {
     const logger = getEnvTypeLogger('cli');
 
@@ -42,18 +49,31 @@ program
       if (options.config) {
         config = loadConfigFile(options.config);
       } else {
-        // Build config from CLI options
-        config = {
-          envFiles: options.envFiles as string[],
-          outputPath: options.output as string,
-          validationLib: options.validationLib as ValidationLibrary,
-          validationOutput: options.validationOutput as string,
-          requiredVars: options.required as string[],
-          parseTypes: options.parseTypes as boolean,
-          strict: options.strict as boolean,
-          watch: options.watch as boolean,
-        };
+        config = {} as GeneratorConfig;
       }
+
+      config = {
+        envFiles: config.envFiles ?? (options.envFiles as string[]),
+        outputPath: config.outputPath ?? (options.output as string),
+        validationLib: (options.validationLib as ValidationLibrary) ?? config.validationLib,
+        validationOutput: config.validationOutput ?? (options.validationOutput as string),
+        requiredVars: config.requiredVars ?? (options.required as string[]),
+        parseTypes: config.parseTypes ?? (options.parseTypes as boolean),
+        strict: config.strict ?? (options.strict as boolean),
+        watch: config.watch ?? (options.watch as boolean),
+        profile: options.profile ?? config.profile,
+        workspaceRoot: options.workspaceRoot ?? config.workspaceRoot,
+        cache: typeof options.cache === 'boolean' ? options.cache : config.cache,
+        schema: config.schema,
+        profiles: config.profiles,
+        compliance: {
+          ...config.compliance,
+          emitSbom: options.emitSbom ?? config.compliance?.emitSbom,
+          emitAttestation: options.emitAttestation ?? config.compliance?.emitAttestation,
+          scanSecrets: options.scanSecrets ?? config.compliance?.scanSecrets,
+          failOnSecret: options.failOnSecret ?? config.compliance?.failOnSecret,
+        },
+      };
 
       // Validate config
       validateConfig(config);
@@ -137,9 +157,17 @@ function loadConfigFile(configPath: string): GeneratorConfig {
  * Validate configuration
  */
 function validateConfig(config: GeneratorConfig): void {
+  const workspaceRoot = config.workspaceRoot ? path.resolve(config.workspaceRoot) : undefined;
+  const profile = config.profiles?.find((candidate) => candidate.name === config.profile);
+  if (config.profile && config.profiles?.length && !profile) {
+    throw new Error(`Profile ${config.profile} not found in configuration`);
+  }
+
+  const envFilesToCheck = profile?.envFiles ?? config.envFiles;
+
   // Check if env files exist
-  for (const envFile of config.envFiles) {
-    const absolutePath = path.resolve(envFile);
+  for (const envFile of envFilesToCheck) {
+    const absolutePath = workspaceRoot ? path.resolve(workspaceRoot, envFile) : path.resolve(envFile);
     if (!fs.existsSync(absolutePath)) {
       throw new Error(`Environment file not found: ${envFile}`);
     }
