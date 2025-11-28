@@ -5,6 +5,16 @@ All notable changes to `@kitiumai/env-type-generator` will be documented in this
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Schema-first ergonomics with `defineEnvSchema` and enhanced validation (defaults, enums, regex patterns, unions, transformers).
+- Simplified programmatic entrypoint `generateEnvTypes` with cache-aware generation for CI and build systems.
+- Compliance tooling including secret scanning, CycloneDX SBOM emission, and checksum attestations behind new CLI flags.
+- Workspace-aware profiles to target multiple env surfaces plus hash-based caching for monorepos and Nx/Turbo pipelines.
+- Structured generation metrics (required/enum/pattern counts) to improve observability.
+
 ## [2.0.0] - 2025-01-XX
 
 ### Changed
