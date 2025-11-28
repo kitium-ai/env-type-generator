@@ -3,7 +3,12 @@
  * Generates Zod/Yup/Joi schemas for runtime validation
  */
 
-import type { EnvConstraint, EnvVariable, ValidationLibrary, GeneratorOptions } from '../types/index.js';
+import type {
+  EnvConstraint,
+  EnvVariable,
+  ValidationLibrary,
+  GeneratorOptions,
+} from '../types/index.js';
 import { GenerationError } from '../utils/errors.js';
 import { EnvParser } from '../parsers/env-parser.js';
 
@@ -63,7 +68,8 @@ export class ValidationGenerator {
       const variable = variables[i];
       const isLast = i === variables.length - 1;
       const constraint = options.schema?.[variable.key];
-      const isRequired = constraint?.required || options.requiredVars.includes(variable.key) || options.strict;
+      const isRequired =
+        constraint?.required || options.requiredVars.includes(variable.key) || options.strict;
 
       if (variable.comment) {
         lines.push(`  // ${variable.comment}`);
@@ -116,7 +122,8 @@ export class ValidationGenerator {
       const variable = variables[i];
       const isLast = i === variables.length - 1;
       const constraint = options.schema?.[variable.key];
-      const isRequired = constraint?.required || options.requiredVars.includes(variable.key) || options.strict;
+      const isRequired =
+        constraint?.required || options.requiredVars.includes(variable.key) || options.strict;
 
       if (variable.comment) {
         lines.push(`  // ${variable.comment}`);
@@ -156,7 +163,8 @@ export class ValidationGenerator {
       const variable = variables[i];
       const isLast = i === variables.length - 1;
       const constraint = options.schema?.[variable.key];
-      const isRequired = constraint?.required || options.requiredVars.includes(variable.key) || options.strict;
+      const isRequired =
+        constraint?.required || options.requiredVars.includes(variable.key) || options.strict;
 
       if (variable.comment) {
         lines.push(`  // ${variable.comment}`);
@@ -184,7 +192,14 @@ export class ValidationGenerator {
     }
 
     if (constraint?.union?.length) {
-      const unionTypes = constraint.union.map((type) => this.getZodType(value, parseTypes, { ...constraint, enum: undefined, union: undefined, type }));
+      const unionTypes = constraint.union.map((type) =>
+        this.getZodType(value, parseTypes, {
+          ...constraint,
+          enum: undefined,
+          union: undefined,
+          type,
+        })
+      );
       return `z.union([${unionTypes.join(', ')}])`;
     }
 
@@ -275,7 +290,10 @@ export class ValidationGenerator {
     }
   }
 
-  private getZodTypeFromPrimitive(type: EnvConstraint['type'], transformer?: EnvConstraint['transformer']): string {
+  private getZodTypeFromPrimitive(
+    type: EnvConstraint['type'],
+    transformer?: EnvConstraint['transformer']
+  ): string {
     switch (type) {
       case 'boolean':
         return 'z.boolean()';

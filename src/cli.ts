@@ -167,7 +167,9 @@ function validateConfig(config: GeneratorConfig): void {
 
   // Check if env files exist
   for (const envFile of envFilesToCheck) {
-    const absolutePath = workspaceRoot ? path.resolve(workspaceRoot, envFile) : path.resolve(envFile);
+    const absolutePath = workspaceRoot
+      ? path.resolve(workspaceRoot, envFile)
+      : path.resolve(envFile);
     if (!fs.existsSync(absolutePath)) {
       throw new Error(`Environment file not found: ${envFile}`);
     }

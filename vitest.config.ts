@@ -33,6 +33,11 @@ export default defineConfig(
           },
         },
       },
+      resolve: {
+        alias: {
+          '@kitiumai/logger': '@kitiumai/logger/dist/cjs/index.js',
+        },
+      },
     },
   })
 );

@@ -12,7 +12,10 @@ const KNOWN_PATTERNS: Array<{ regex: RegExp; reason: string }> = [
   { regex: /sk_live_[0-9a-zA-Z]{20,}/, reason: 'Possible Stripe secret key' },
   { regex: /AIza[0-9A-Za-z\-_]{35}/, reason: 'Possible Google API key' },
   { regex: /ghp_[0-9A-Za-z]{30,}/, reason: 'Possible GitHub personal access token' },
-  { regex: /[a-zA-Z0-9_\-]{32,}\.[a-zA-Z0-9_\-]{32,}\.[a-zA-Z0-9_\-]{32,}/, reason: 'Possible JWT token' },
+  {
+    regex: /[a-zA-Z0-9_-]{32,}\.[a-zA-Z0-9_-]{32,}\.[a-zA-Z0-9_-]{32,}/,
+    reason: 'Possible JWT token',
+  },
 ];
 
 export class SecretScanner {
@@ -23,7 +26,9 @@ export class SecretScanner {
       const upperKey = variable.key.toUpperCase();
       const trimmedValue = variable.value.trim();
 
-      if (!trimmedValue) continue;
+      if (!trimmedValue) {
+        continue;
+      }
 
       const matchingKeyword = HIGH_RISK_KEYS.find((keyword) => upperKey.includes(keyword));
       if (matchingKeyword && trimmedValue.length >= 20) {
@@ -59,7 +64,9 @@ export class SecretScanner {
   }
 
   private buildPreview(value: string): string {
-    if (value.length <= 8) return value;
+    if (value.length <= 8) {
+      return value;
+    }
     return `${value.substring(0, 4)}…${value.substring(value.length - 4)}`;
   }
 }
