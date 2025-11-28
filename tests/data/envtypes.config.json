@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "0.1",
+  "environments": {
+    "development": [
+      {"name": "API_URL", "type": "url", "required": true},
+      {"name": "TIMEOUT", "type": "duration", "default": "10s", "required": false},
+      {"name": "FEATURE", "type": "enum", "enum": ["on", "off"], "required": true}
+    ],
+    "production": [
+      {"name": "API_URL", "type": "url", "required": true},
+      {"name": "TIMEOUT", "type": "duration", "default": "30s", "required": false},
+      {"name": "FEATURE", "type": "enum", "enum": ["on", "off"], "required": true}
+    ]
+  },
+  "targets": [
+    {"language": "ts", "outDir": "generated/ts"},
+    {"language": "go", "outDir": "generated/go"},
+    {"language": "python", "outDir": "generated/python"}
+  ]
+}
