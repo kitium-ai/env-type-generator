@@ -58,8 +58,7 @@ export class GeneratorService {
     this.cache = dependencies.cacheService ?? new CacheService();
     this.sbomGenerator = dependencies.sbomGenerator ?? new SbomGenerator();
     this.secretScanner = dependencies.secretScanner ?? new SecretScanner();
-    this.attestationService =
-      dependencies.attestationService ?? new AttestationService();
+    this.attestationService = dependencies.attestationService ?? new AttestationService();
   }
 
   /**
@@ -114,8 +113,11 @@ export class GeneratorService {
         resolvedConfig.validationOutput
       ) {
         validationSchema =
-          this.validationGenerator.generateSchema(allVariables, resolvedConfig.validationLib, options) ??
-          undefined;
+          this.validationGenerator.generateSchema(
+            allVariables,
+            resolvedConfig.validationLib,
+            options
+          ) ?? undefined;
 
         if (validationSchema) {
           this.writeFile(resolvedConfig.validationOutput, validationSchema);
@@ -314,13 +316,18 @@ export class GeneratorService {
 
   private logMetrics(variables: EnvVariable[], config: GeneratorConfig): void {
     const requiredSet = new Set(this.normalizeRequiredVars(config.requiredVars));
-    const enumCount = variables.filter((variable) => config.schema?.[variable.key]?.enum?.length).length;
-    const patternCount = variables.filter((variable) => config.schema?.[variable.key]?.pattern).length;
+    const enumCount = variables.filter(
+      (variable) => config.schema?.[variable.key]?.enum?.length
+    ).length;
+    const patternCount = variables.filter(
+      (variable) => config.schema?.[variable.key]?.pattern
+    ).length;
 
     this.logger.info('Generation metrics', {
       profile: config.profile,
       totalVariables: variables.length,
-      required: variables.filter((v) => requiredSet.has(v.key) || config.schema?.[v.key]?.required).length,
+      required: variables.filter((v) => requiredSet.has(v.key) || config.schema?.[v.key]?.required)
+        .length,
       enums: enumCount,
       patterns: patternCount,
       validationLib: config.validationLib ?? 'none',

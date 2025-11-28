@@ -12,7 +12,9 @@ type CachePayload = {
 
 export class CacheService {
   public isFresh(config: GeneratorConfig): boolean {
-    if (config.cache === false) return false;
+    if (config.cache === false) {
+      return false;
+    }
 
     const currentHash = this.computeHash(config);
     const cached = this.readCache();
@@ -20,7 +22,9 @@ export class CacheService {
   }
 
   public write(config: GeneratorConfig): void {
-    if (config.cache === false) return;
+    if (config.cache === false) {
+      return;
+    }
 
     const payload: CachePayload = {
       profile: config.profile ?? 'default',
@@ -65,7 +69,9 @@ export class CacheService {
 
   private readCache(): CachePayload | undefined {
     try {
-      if (!fs.existsSync(CACHE_PATH)) return undefined;
+      if (!fs.existsSync(CACHE_PATH)) {
+        return undefined;
+      }
       const content = fs.readFileSync(CACHE_PATH, 'utf-8');
       return JSON.parse(content) as CachePayload;
     } catch {

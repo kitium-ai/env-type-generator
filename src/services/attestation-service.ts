@@ -4,7 +4,7 @@ import crypto from 'crypto';
 import type { GeneratedOutput, GeneratorConfig } from '../types/index.js';
 
 export class AttestationService {
-  public emit(config: GeneratorConfig, output: GeneratedOutput, target?: string): string {
+  public emit(config: GeneratorConfig, output: GeneratedOutput, target?: string | boolean): string {
     const destination = this.resolveOutputPath(target);
     const attest = this.buildAttestation(config, output);
     const serialized = JSON.stringify(attest, null, 2);
@@ -17,14 +17,21 @@ export class AttestationService {
     return destination;
   }
 
-  private resolveOutputPath(pathLike?: string): string {
+  private resolveOutputPath(pathLike?: string | boolean): string {
     const defaultPath = path.resolve('.env-type-generator/attestation.json');
-    if (!pathLike || pathLike === true) return defaultPath;
-    return path.resolve(pathLike);
+    if (!pathLike || pathLike === true) {
+      return defaultPath;
+    }
+    return path.resolve(pathLike as string);
   }
 
-  private buildAttestation(config: GeneratorConfig, output: GeneratedOutput) {
-    const hashes = this.buildHashes([config.outputPath, config.validationOutput].filter(Boolean) as string[]);
+  private buildAttestation(
+    config: GeneratorConfig,
+    output: GeneratedOutput
+  ): Record<string, unknown> {
+    const hashes = this.buildHashes(
+      [config.outputPath, config.validationOutput].filter(Boolean) as string[]
+    );
 
     return {
       _type: 'env-type-generator.attestation',
@@ -42,7 +49,11 @@ export class AttestationService {
     };
   }
 
-  private buildHashes(pathsToHash: string[]) {
+  private buildHashes(pathsToHash: string[]): Array<{
+    path: string;
+    exists: boolean;
+    sha256: string | undefined;
+  }> {
     return pathsToHash.map((file) => {
       const absolute = path.resolve(file);
       const exists = fs.existsSync(absolute);

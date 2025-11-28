@@ -4,7 +4,7 @@ import crypto from 'crypto';
 import type { GeneratorConfig } from '../types/index.js';
 
 export class SbomGenerator {
-  public emit(config: GeneratorConfig, outputPath?: string): string {
+  public emit(config: GeneratorConfig, outputPath?: string | boolean): string {
     const targetPath = this.resolveOutputPath(outputPath);
     const sbom = this.buildSbom(config, targetPath);
     const serialized = JSON.stringify(sbom, null, 2);
@@ -17,16 +17,22 @@ export class SbomGenerator {
     return targetPath;
   }
 
-  private resolveOutputPath(outputPath?: string): string {
+  private resolveOutputPath(outputPath?: string | boolean): string {
     const defaultPath = path.resolve('.env-type-generator/sbom.json');
-    if (!outputPath || outputPath === true) return defaultPath;
-    return path.resolve(outputPath);
+    if (!outputPath || outputPath === true) {
+      return defaultPath;
+    }
+    return path.resolve(outputPath as string);
   }
 
-  private buildSbom(config: GeneratorConfig, targetPath: string) {
+  private buildSbom(config: GeneratorConfig, targetPath: string): Record<string, unknown> {
     const files = [...config.envFiles];
-    if (config.outputPath) files.push(config.outputPath);
-    if (config.validationOutput) files.push(config.validationOutput);
+    if (config.outputPath) {
+      files.push(config.outputPath);
+    }
+    if (config.validationOutput) {
+      files.push(config.validationOutput);
+    }
 
     const artifacts = files.map((file) => {
       const absolute = path.resolve(file);
@@ -55,7 +61,10 @@ export class SbomGenerator {
         name: path.basename(artifact.path),
         purl: undefined,
         hashes: artifact.hash ? [{ alg: 'SHA-256', content: artifact.hash }] : [],
-        properties: [{ name: 'path', value: artifact.path }, { name: 'exists', value: String(artifact.exists) }],
+        properties: [
+          { name: 'path', value: artifact.path },
+          { name: 'exists', value: String(artifact.exists) },
+        ],
       })),
       targetPath,
     };

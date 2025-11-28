@@ -59,7 +59,9 @@ export class TypeGenerator {
   }
 
   private normalizeType(type: string): string {
-    if (type === 'object') return 'Record<string, unknown>';
+    if (type === 'object') {
+      return 'Record<string, unknown>';
+    }
     return type;
   }
 
@@ -205,32 +207,26 @@ export class TypeGenerator {
             );
             lines.push(`    }`);
           }
-          const resolved = defaultValue
-            ? `raw ?? '${defaultValue}'`
-            : 'raw';
-          lines.push(
-            `    const parsed = parseValue('${typeInfo.name}', ${resolved}) as ${typeInfo.type};`
-          );
+          const resolved = defaultValue ? `raw ?? '${defaultValue}'` : 'raw';
+          const parseCall = `parseValue('${typeInfo.name}', ${resolved}) as ${typeInfo.type}`;
           if (constraint?.transformer) {
             lines.push(
-              `    return applyTransform(parsed as unknown as string, '${constraint.transformer}') as ${typeInfo.type};`
+              `    return applyTransform(${parseCall} as unknown as string, '${constraint.transformer}') as ${typeInfo.type};`
             );
           } else {
-            lines.push('    return parsed as unknown as ' + typeInfo.type + ';');
+            lines.push(`    return ${parseCall};`);
           }
         } else {
           const source = defaultValue
             ? `process.env.${typeInfo.name} ?? '${defaultValue}'`
             : `process.env.${typeInfo.name}`;
-          lines.push(
-            `    const parsed = parseValue('${typeInfo.name}', ${source}) as ${typeInfo.type} | undefined;`
-          );
+          const parseCall = `parseValue('${typeInfo.name}', ${source}) as ${typeInfo.type} | undefined`;
           if (constraint?.transformer) {
             lines.push(
-              `    return applyTransform(parsed as unknown as string, '${constraint.transformer}') as ${typeInfo.type} | undefined;`
+              `    return applyTransform(${parseCall} as unknown as string, '${constraint.transformer}') as ${typeInfo.type} | undefined;`
             );
           } else {
-            lines.push('    return parsed as unknown as ' + typeInfo.type + ' | undefined;');
+            lines.push(`    return ${parseCall};`);
           }
         }
 
