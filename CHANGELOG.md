@@ -22,4 +22,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tsconfig.eslint.json` to give ESLint/TypeScript the same view of the source tree (tests included) without affecting the production compiler config.
 
 [2.0.0]: https://github.com/kitium-ai/env-type-generator/releases/tag/v2.0.0
-

@@ -1,37 +1,19 @@
-import { fileURLToPath } from 'node:url';
-import { baseConfig, nodeConfig, typeScriptConfig } from '@kitiumai/lint/eslint';
-
-const tsconfigPath = fileURLToPath(new URL('./tsconfig.eslint.json', import.meta.url));
-const tsconfigRoot = fileURLToPath(new URL('./', import.meta.url));
+import baseConfig from '@kitiumai/config/eslint.config.base.js';
 
 export default [
+  ...baseConfig,
   {
     ignores: ['dist/**', 'coverage/**', 'node_modules/**'],
-    languageOptions: {
-      parserOptions: {
-        project: tsconfigPath,
-        tsconfigRootDir: tsconfigRoot,
-      },
-    },
   },
-  ...baseConfig,
-  ...nodeConfig,
-  ...typeScriptConfig,
   {
     name: 'env-type-generator-overrides',
     files: ['src/**/*.ts'],
-    languageOptions: {
-      parserOptions: {
-        project: tsconfigPath,
-        tsconfigRootDir: tsconfigRoot,
-      },
-    },
     rules: {
-      'no-console': 'off',
+      'no-console': 'off', // CLI tool needs console output
       'no-restricted-imports': 'off',
       'max-lines-per-function': 'off',
       'max-statements': 'off',
-      complexity: 'off',
+      complexity: 'off', // Generator logic can be complex
       '@typescript-eslint/no-require-imports': 'off',
       '@typescript-eslint/consistent-type-imports': 'off',
       '@typescript-eslint/require-await': 'off',
@@ -39,15 +21,10 @@ export default [
   },
   {
     name: 'env-type-generator-tests',
-    files: ['src/**/*.test.ts', 'src/**/*.spec.ts'],
-    languageOptions: {
-      parserOptions: {
-        project: tsconfigPath,
-        tsconfigRootDir: tsconfigRoot,
-      },
-    },
+    files: ['src/**/*.test.ts', '**/*.spec.ts'],
     rules: {
-      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/require-await': 'off',
     },
   },
