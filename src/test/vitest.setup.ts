@@ -1,7 +1,4 @@
-import {
-  setupCommonPatterns,
-  setupVitestGlobals,
-} from '../../../vitest-helpers/dist/setup/index.js';
+import { setupCommonPatterns, setupVitestGlobals } from '@kitiumai/vitest-helpers/setup';
 
 setupVitestGlobals();
 setupCommonPatterns();

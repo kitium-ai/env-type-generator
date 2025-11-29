@@ -4,10 +4,12 @@
  */
 
 export { GeneratorService } from './services/generator-service.js';
+export { generateEnvTypes } from './api.js';
 export { EnvParser } from './parsers/env-parser.js';
 export { TypeGenerator } from './generators/type-generator.js';
 export { ValidationGenerator } from './generators/validation-generator.js';
 export { FileWatcher } from './services/file-watcher.js';
+export { defineEnvSchema } from './utils/schema-helpers.js';
 
 export type {
   EnvVariable,
@@ -18,6 +20,10 @@ export type {
   ValidationLibrary,
   ParserOptions,
   GeneratorOptions,
+  EnvSchema,
+  EnvConstraint,
+  EnvProfile,
+  ComplianceOptions,
 } from './types/index.js';
 
 export {

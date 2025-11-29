@@ -3,7 +3,12 @@
  * Generates Zod/Yup/Joi schemas for runtime validation
  */
 
-import type { EnvVariable, ValidationLibrary, GeneratorOptions } from '../types/index.js';
+import type {
+  EnvConstraint,
+  EnvVariable,
+  ValidationLibrary,
+  GeneratorOptions,
+} from '../types/index.js';
 import { GenerationError } from '../utils/errors.js';
 import { EnvParser } from '../parsers/env-parser.js';
 
@@ -62,16 +67,26 @@ export class ValidationGenerator {
     for (let i = 0; i < variables.length; i++) {
       const variable = variables[i];
       const isLast = i === variables.length - 1;
-      const isRequired = options.requiredVars.includes(variable.key) || options.strict;
+      const constraint = options.schema?.[variable.key];
+      const isRequired =
+        constraint?.required || options.requiredVars.includes(variable.key) || options.strict;
 
       if (variable.comment) {
         lines.push(`  // ${variable.comment}`);
       }
 
-      let zodType = this.getZodType(variable.value, options.parseTypes);
+      let zodType = this.getZodType(variable.value, options.parseTypes, constraint);
 
       if (!isRequired) {
         zodType = `${zodType}.optional()`;
+      }
+
+      if (constraint?.pattern) {
+        zodType = `${zodType}.regex(new RegExp(${JSON.stringify(constraint.pattern)}))`;
+      }
+
+      if (constraint?.defaultValue !== undefined) {
+        zodType = `${zodType}.default('${constraint.defaultValue}')`;
       }
 
       lines.push(`  ${variable.key}: ${zodType}${isLast ? '' : ','}`);
@@ -106,13 +121,15 @@ export class ValidationGenerator {
     for (let i = 0; i < variables.length; i++) {
       const variable = variables[i];
       const isLast = i === variables.length - 1;
-      const isRequired = options.requiredVars.includes(variable.key) || options.strict;
+      const constraint = options.schema?.[variable.key];
+      const isRequired =
+        constraint?.required || options.requiredVars.includes(variable.key) || options.strict;
 
       if (variable.comment) {
         lines.push(`  // ${variable.comment}`);
       }
 
-      const yupType = this.getYupType(variable.value, options.parseTypes, isRequired);
+      const yupType = this.getYupType(variable.value, options.parseTypes, isRequired, constraint);
       lines.push(`  ${variable.key}: ${yupType}${isLast ? '' : ','}`);
     }
 
@@ -145,13 +162,15 @@ export class ValidationGenerator {
     for (let i = 0; i < variables.length; i++) {
       const variable = variables[i];
       const isLast = i === variables.length - 1;
-      const isRequired = options.requiredVars.includes(variable.key) || options.strict;
+      const constraint = options.schema?.[variable.key];
+      const isRequired =
+        constraint?.required || options.requiredVars.includes(variable.key) || options.strict;
 
       if (variable.comment) {
         lines.push(`  // ${variable.comment}`);
       }
 
-      const joiType = this.getJoiType(variable.value, options.parseTypes, isRequired);
+      const joiType = this.getJoiType(variable.value, options.parseTypes, isRequired, constraint);
       lines.push(`  ${variable.key}: ${joiType}${isLast ? '' : ','}`);
     }
 
@@ -167,7 +186,26 @@ export class ValidationGenerator {
   /**
    * Get Zod type for a value
    */
-  private getZodType(value: string, parseTypes: boolean): string {
+  private getZodType(value: string, parseTypes: boolean, constraint?: EnvConstraint): string {
+    if (constraint?.enum?.length) {
+      return `z.enum([${constraint.enum.map((val) => `'${val}'`).join(', ')}])`;
+    }
+
+    if (constraint?.union?.length) {
+      const unionTypes = constraint.union.map((type) =>
+        this.getZodType(value, parseTypes, {
+          ...constraint,
+          enum: undefined,
+          union: undefined,
+          type,
+        })
+      );
+      return `z.union([${unionTypes.join(', ')}])`;
+    }
+
+    if (constraint?.type) {
+      return this.getZodTypeFromPrimitive(constraint.type, constraint.transformer);
+    }
     if (!parseTypes) {
       return 'z.string()';
     }
@@ -189,8 +227,17 @@ export class ValidationGenerator {
   /**
    * Get Yup type for a value
    */
-  private getYupType(value: string, parseTypes: boolean, required: boolean): string {
+  private getYupType(
+    value: string,
+    parseTypes: boolean,
+    required: boolean,
+    constraint?: EnvConstraint
+  ): string {
     const requiredSuffix = required ? '.required()' : '';
+
+    if (constraint?.enum?.length) {
+      return `yup.string().oneOf([${constraint.enum.map((val) => `'${val}'`).join(', ')}])${requiredSuffix}`;
+    }
 
     if (!parseTypes) {
       return `yup.string()${requiredSuffix}`;
@@ -213,8 +260,17 @@ export class ValidationGenerator {
   /**
    * Get Joi type for a value
    */
-  private getJoiType(value: string, parseTypes: boolean, required: boolean): string {
+  private getJoiType(
+    value: string,
+    parseTypes: boolean,
+    required: boolean,
+    constraint?: EnvConstraint
+  ): string {
     const requiredSuffix = required ? '.required()' : '.optional()';
+
+    if (constraint?.enum?.length) {
+      return `Joi.string().valid(${constraint.enum.map((val) => `'${val}'`).join(', ')})${requiredSuffix}`;
+    }
 
     if (!parseTypes) {
       return `Joi.string()${requiredSuffix}`;
@@ -231,6 +287,22 @@ export class ValidationGenerator {
         return `Joi.object()${requiredSuffix}`;
       default:
         return `Joi.string()${requiredSuffix}`;
+    }
+  }
+
+  private getZodTypeFromPrimitive(
+    type: EnvConstraint['type'],
+    transformer?: EnvConstraint['transformer']
+  ): string {
+    switch (type) {
+      case 'boolean':
+        return 'z.boolean()';
+      case 'number':
+        return 'z.number()';
+      case 'object':
+        return transformer === 'json' ? 'z.any()' : 'z.record(z.string(), z.any())';
+      default:
+        return 'z.string()';
     }
   }
 }

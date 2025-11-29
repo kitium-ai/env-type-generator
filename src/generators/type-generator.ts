@@ -31,10 +31,19 @@ export class TypeGenerator {
    */
   private buildTypeInfos(variables: EnvVariable[], options: GeneratorOptions): TypeInfo[] {
     return variables.map((variable) => {
-      const isRequired = options.requiredVars.includes(variable.key);
+      const constraint = options.schema?.[variable.key];
+      const isRequired = constraint?.required ?? options.requiredVars.includes(variable.key);
+      const comment = constraint?.description ?? variable.comment;
+
       let type = 'string';
 
-      if (options.parseTypes) {
+      if (constraint?.enum?.length) {
+        type = constraint.enum.map((value) => `'${value}'`).join(' | ');
+      } else if (constraint?.union?.length) {
+        type = constraint.union.map((value) => this.normalizeType(value)).join(' | ');
+      } else if (constraint?.type) {
+        type = this.normalizeType(constraint.type);
+      } else if (options.parseTypes) {
         const inferredType = this.parser.inferType(variable.value);
         type = inferredType;
       }
@@ -44,9 +53,16 @@ export class TypeGenerator {
         type,
         required: isRequired || options.strict,
         parsed: options.parseTypes,
-        comment: variable.comment,
+        comment,
       };
     });
+  }
+
+  private normalizeType(type: string): string {
+    if (type === 'object') {
+      return 'Record<string, unknown>';
+    }
+    return type;
   }
 
   /**
@@ -141,6 +157,33 @@ export class TypeGenerator {
     lines.push('  return value;');
     lines.push('}');
     lines.push('');
+    lines.push('function applyTransform(value: unknown, transformer?: string): unknown {');
+    lines.push('  if (!transformer) return value;');
+    lines.push('  if (typeof value !== "string") return value;');
+    lines.push('');
+    lines.push('  if (transformer === "json") {');
+    lines.push('    try {');
+    lines.push('      return JSON.parse(value);');
+    lines.push('    } catch {');
+    lines.push('      return value;');
+    lines.push('    }');
+    lines.push('  }');
+    lines.push('');
+    lines.push('  if (transformer === "base64") {');
+    lines.push('    try {');
+    lines.push('      return Buffer.from(value, "base64").toString("utf-8");');
+    lines.push('    } catch {');
+    lines.push('      return value;');
+    lines.push('    }');
+    lines.push('  }');
+    lines.push('');
+    lines.push('  if (transformer === "trim") {');
+    lines.push('    return value.trim();');
+    lines.push('  }');
+    lines.push('');
+    lines.push('  return value;');
+    lines.push('}');
+    lines.push('');
 
     // Build env object
     lines.push('export const env = {');
@@ -150,22 +193,41 @@ export class TypeGenerator {
     for (let i = 0; i < typeInfos.length; i++) {
       const typeInfo = typeInfos[i];
       const isLast = i === typeInfos.length - 1;
+      const constraint = options.schema?.[typeInfo.name];
+      const defaultValue = constraint?.defaultValue;
 
       if (options.parseTypes) {
         lines.push(`  get ${typeInfo.name}() {`);
-
         if (typeInfo.required && options.strict) {
-          lines.push(`    const value = process.env.${typeInfo.name};`);
-          lines.push(`    if (value === undefined) {`);
-          lines.push(
-            `      throw new Error('Required environment variable ${typeInfo.name} is not defined');`
-          );
-          lines.push(`    }`);
-          lines.push(`    return parseValue('${typeInfo.name}', value) as ${typeInfo.type};`);
+          lines.push(`    const raw = process.env.${typeInfo.name};`);
+          if (!defaultValue) {
+            lines.push(`    if (raw === undefined) {`);
+            lines.push(
+              `      throw new Error('Required environment variable ${typeInfo.name} is not defined');`
+            );
+            lines.push(`    }`);
+          }
+          const resolved = defaultValue ? `raw ?? '${defaultValue}'` : 'raw';
+          const parseCall = `parseValue('${typeInfo.name}', ${resolved}) as ${typeInfo.type}`;
+          if (constraint?.transformer) {
+            lines.push(
+              `    return applyTransform(${parseCall} as unknown as string, '${constraint.transformer}') as ${typeInfo.type};`
+            );
+          } else {
+            lines.push(`    return ${parseCall};`);
+          }
         } else {
-          lines.push(
-            `    return parseValue('${typeInfo.name}', process.env.${typeInfo.name}) as ${typeInfo.type} | undefined;`
-          );
+          const source = defaultValue
+            ? `process.env.${typeInfo.name} ?? '${defaultValue}'`
+            : `process.env.${typeInfo.name}`;
+          const parseCall = `parseValue('${typeInfo.name}', ${source}) as ${typeInfo.type} | undefined`;
+          if (constraint?.transformer) {
+            lines.push(
+              `    return applyTransform(${parseCall} as unknown as string, '${constraint.transformer}') as ${typeInfo.type} | undefined;`
+            );
+          } else {
+            lines.push(`    return ${parseCall};`);
+          }
         }
 
         lines.push(`  }${isLast ? '' : ','}`);

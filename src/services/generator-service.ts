@@ -20,6 +20,10 @@ import { TypeGenerator } from '../generators/type-generator.js';
 import { ValidationGenerator } from '../generators/validation-generator.js';
 import { FileWatcher } from './file-watcher.js';
 import { GenerationError } from '../utils/errors.js';
+import { CacheService } from './cache-service.js';
+import { SbomGenerator } from '../generators/sbom-generator.js';
+import { SecretScanner } from '../utils/secret-scanner.js';
+import { AttestationService } from './attestation-service.js';
 
 type GeneratorServiceDependencies = {
   parser?: EnvParser;
@@ -27,6 +31,10 @@ type GeneratorServiceDependencies = {
   validationGenerator?: ValidationGenerator;
   watcher?: FileWatcher;
   logger?: ILogger;
+  cacheService?: CacheService;
+  sbomGenerator?: SbomGenerator;
+  secretScanner?: SecretScanner;
+  attestationService?: AttestationService;
 };
 
 export class GeneratorService {
@@ -35,6 +43,10 @@ export class GeneratorService {
   private readonly validationGenerator: ValidationGenerator;
   private readonly watcher: FileWatcher;
   private readonly logger: ILogger;
+  private readonly cache: CacheService;
+  private readonly sbomGenerator: SbomGenerator;
+  private readonly secretScanner: SecretScanner;
+  private readonly attestationService: AttestationService;
 
   constructor(dependencies: GeneratorServiceDependencies = {}) {
     this.logger = dependencies.logger ?? getEnvTypeLogger('generator-service');
@@ -43,36 +55,51 @@ export class GeneratorService {
     this.validationGenerator = dependencies.validationGenerator ?? new ValidationGenerator();
     this.watcher =
       dependencies.watcher ?? new FileWatcher(this.logger.child({ component: 'file-watcher' }));
+    this.cache = dependencies.cacheService ?? new CacheService();
+    this.sbomGenerator = dependencies.sbomGenerator ?? new SbomGenerator();
+    this.secretScanner = dependencies.secretScanner ?? new SecretScanner();
+    this.attestationService = dependencies.attestationService ?? new AttestationService();
   }
 
   /**
    * Generate types and validation schemas
    */
   public generate(config: GeneratorConfig): Result<GeneratedOutput, GenerationError> {
-    const options = this.buildGeneratorOptions(config);
+    const resolvedConfig = this.resolveConfig(config);
+    const options = this.buildGeneratorOptions(resolvedConfig);
 
     try {
       this.logger.info('Starting env type generation', {
-        envFiles: config.envFiles,
-        outputPath: config.outputPath,
-        validationOutput: config.validationOutput,
+        envFiles: resolvedConfig.envFiles,
+        outputPath: resolvedConfig.outputPath,
+        validationOutput: resolvedConfig.validationOutput,
         parseTypes: options.parseTypes,
         strict: options.strict,
       });
 
-      const parsedFiles = this.parser.parseFiles(config.envFiles, {
+      if (this.cache.isFresh(resolvedConfig)) {
+        this.logger.info('Skipping generation because cache is fresh', {
+          profile: resolvedConfig.profile ?? 'default',
+        });
+        const skippedOutput: GeneratedOutput = { typeDefinition: '', skipped: true };
+        this.emitComplianceArtifacts(resolvedConfig, skippedOutput);
+        return { success: true, data: skippedOutput };
+      }
+
+      const parsedFiles = this.parser.parseFiles(resolvedConfig.envFiles, {
         parseTypes: options.parseTypes,
         requiredVars: options.requiredVars,
+        schema: resolvedConfig.schema,
       });
 
       const allVariables = this.mergeVariables(parsedFiles.map((file) => file.variables));
 
       const typeDefinition = this.typeGenerator.generateTypes(allVariables, options);
-      this.writeFile(config.outputPath, typeDefinition);
+      this.writeFile(resolvedConfig.outputPath, typeDefinition);
 
       let runtimeHelper: string | undefined;
       if (options.parseTypes) {
-        const helperPath = config.outputPath.replace(/\.d\.ts$/, '.js');
+        const helperPath = resolvedConfig.outputPath.replace(/\.d\.ts$/, '.js');
         runtimeHelper = this.typeGenerator.generateRuntimeHelper(allVariables, options);
         if (runtimeHelper) {
           this.writeFile(helperPath, runtimeHelper);
@@ -80,21 +107,48 @@ export class GeneratorService {
       }
 
       let validationSchema: string | undefined;
-      if (config.validationLib && config.validationLib !== 'none' && config.validationOutput) {
+      if (
+        resolvedConfig.validationLib &&
+        resolvedConfig.validationLib !== 'none' &&
+        resolvedConfig.validationOutput
+      ) {
         validationSchema =
-          this.validationGenerator.generateSchema(allVariables, config.validationLib, options) ??
-          undefined;
+          this.validationGenerator.generateSchema(
+            allVariables,
+            resolvedConfig.validationLib,
+            options
+          ) ?? undefined;
 
         if (validationSchema) {
-          this.writeFile(config.validationOutput, validationSchema);
+          this.writeFile(resolvedConfig.validationOutput, validationSchema);
         }
       }
 
+      if (resolvedConfig.compliance?.scanSecrets) {
+        const findings = this.secretScanner.scan(allVariables);
+        if (findings.length) {
+          this.logger.warn('Potential secrets detected in env files', { findings });
+          if (resolvedConfig.compliance.failOnSecret) {
+            throw new GenerationError('Secret scan failed because sensitive values were detected');
+          }
+        }
+      }
+
+      this.cache.write(resolvedConfig);
+
       this.logger.info('Env type generation completed', {
-        outputPath: config.outputPath,
-        validationOutput: config.validationOutput,
+        outputPath: resolvedConfig.outputPath,
+        validationOutput: resolvedConfig.validationOutput,
         runtimeHelperGenerated: Boolean(runtimeHelper),
       });
+
+      this.emitComplianceArtifacts(resolvedConfig, {
+        typeDefinition,
+        runtimeHelper,
+        validationSchema,
+      });
+
+      this.logMetrics(allVariables, resolvedConfig);
 
       return {
         success: true,
@@ -110,7 +164,7 @@ export class GeneratorService {
 
       this.logger.error(
         'Env type generation failed',
-        { outputPath: config.outputPath },
+        { outputPath: resolvedConfig.outputPath },
         generationError
       );
 
@@ -125,24 +179,25 @@ export class GeneratorService {
    * Start watching mode
    */
   public watch(config: GeneratorConfig): void {
+    const resolvedConfig = this.resolveConfig(config);
     // Generate initial types
-    const result = this.generate(config);
+    const result = this.generate(resolvedConfig);
 
     if (!result.success) {
       throw result.error;
     }
 
     this.logger.info('Watch mode enabled', {
-      files: config.envFiles,
-      outputPath: config.outputPath,
+      files: resolvedConfig.envFiles,
+      outputPath: resolvedConfig.outputPath,
     });
 
     // Start watching
     this.watcher.watch({
-      files: config.envFiles,
+      files: resolvedConfig.envFiles,
       onChanged: (filePath: string) => {
         this.logger.info('Regenerating types after env change', { filePath });
-        const regenerationResult = this.generate(config);
+        const regenerationResult = this.generate(resolvedConfig);
         if (!regenerationResult.success) {
           this.logger.error(
             'Failed to regenerate env types after change',
@@ -198,6 +253,7 @@ export class GeneratorService {
       validationLib: config.validationLib ?? 'none',
       requiredVars: this.normalizeRequiredVars(config.requiredVars),
       strict: config.strict ?? false,
+      schema: config.schema,
     };
   }
 
@@ -215,5 +271,66 @@ export class GeneratorService {
    */
   public isWatching(): boolean {
     return this.watcher.isWatching();
+  }
+
+  private resolveConfig(config: GeneratorConfig): GeneratorConfig {
+    const profileName = config.profile ?? 'default';
+    const profileOverride = config.profiles?.find((profile) => profile.name === profileName);
+    const workspaceRoot = config.workspaceRoot ? path.resolve(config.workspaceRoot) : undefined;
+
+    const merged: GeneratorConfig = {
+      ...config,
+      envFiles: profileOverride?.envFiles ?? config.envFiles,
+      outputPath: profileOverride?.outputPath ?? config.outputPath,
+      validationOutput: profileOverride?.validationOutput ?? config.validationOutput,
+      profile: profileName,
+      cache: config.cache ?? true,
+    };
+
+    if (workspaceRoot) {
+      merged.envFiles = merged.envFiles.map((file) => path.resolve(workspaceRoot, file));
+      merged.outputPath = path.resolve(workspaceRoot, merged.outputPath);
+      merged.validationOutput = merged.validationOutput
+        ? path.resolve(workspaceRoot, merged.validationOutput)
+        : undefined;
+    }
+
+    return merged;
+  }
+
+  private emitComplianceArtifacts(config: GeneratorConfig, output: GeneratedOutput): void {
+    if (config.compliance?.emitSbom) {
+      const sbomPath = this.sbomGenerator.emit(config, config.compliance.emitSbom);
+      this.logger.info('Emitted SBOM', { path: sbomPath });
+    }
+
+    if (config.compliance?.emitAttestation) {
+      const attestationPath = this.attestationService.emit(
+        config,
+        output,
+        config.compliance.emitAttestation
+      );
+      this.logger.info('Emitted attestation', { path: attestationPath });
+    }
+  }
+
+  private logMetrics(variables: EnvVariable[], config: GeneratorConfig): void {
+    const requiredSet = new Set(this.normalizeRequiredVars(config.requiredVars));
+    const enumCount = variables.filter(
+      (variable) => config.schema?.[variable.key]?.enum?.length
+    ).length;
+    const patternCount = variables.filter(
+      (variable) => config.schema?.[variable.key]?.pattern
+    ).length;
+
+    this.logger.info('Generation metrics', {
+      profile: config.profile,
+      totalVariables: variables.length,
+      required: variables.filter((v) => requiredSet.has(v.key) || config.schema?.[v.key]?.required)
+        .length,
+      enums: enumCount,
+      patterns: patternCount,
+      validationLib: config.validationLib ?? 'none',
+    });
   }
 }

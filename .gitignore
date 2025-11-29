@@ -36,6 +36,7 @@ yarn-error.log*
 # Temp
 *.tmp
 .cache/
+.env-type-generator/
 
 # Lock files - we use npm, so commit package-lock.json
 # yarn.lock
