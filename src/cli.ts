@@ -9,6 +9,11 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { GeneratorService } from './services/generator-service.js';
 import { getEnvTypeLogger } from './logger.js';
+import {
+  createFileNotFoundError,
+  createValidationError,
+  createEnvTypeGeneratorError,
+} from './utils/errors.js';
 import type { GeneratorConfig, ValidationLibrary } from './types/index.js';
 
 const program = new Command();
@@ -122,14 +127,18 @@ function loadConfigFile(configPath: string): GeneratorConfig {
   const absolutePath = path.resolve(configPath);
 
   if (!fs.existsSync(absolutePath)) {
-    throw new Error(`Config file not found: ${configPath}`);
+    throw createFileNotFoundError(absolutePath);
   }
 
   try {
     const config = require(absolutePath) as GeneratorConfig;
     return config;
   } catch (error) {
-    throw new Error(`Failed to load config: ${(error as Error).message}`);
+    const errorMsg = `Failed to load config from ${absolutePath}: ${(error as Error).message}`;
+    throw createEnvTypeGeneratorError(errorMsg, {
+      configPath: absolutePath,
+      reason: (error as Error).message,
+    });
   }
 }
 
@@ -141,21 +150,26 @@ function validateConfig(config: GeneratorConfig): void {
   for (const envFile of config.envFiles) {
     const absolutePath = path.resolve(envFile);
     if (!fs.existsSync(absolutePath)) {
-      throw new Error(`Environment file not found: ${envFile}`);
+      throw createFileNotFoundError(absolutePath);
     }
   }
 
   // Validate validation library
   const validLibs: ValidationLibrary[] = ['zod', 'yup', 'joi', 'none'];
   if (config.validationLib && !validLibs.includes(config.validationLib)) {
-    throw new Error(
-      `Invalid validation library: ${config.validationLib}. Must be one of: ${validLibs.join(', ')}`
-    );
+    throw createValidationError(`Invalid validation library: ${config.validationLib}`, {
+      validationLib: config.validationLib,
+      supportedLibs: validLibs,
+      help: 'Use one of: zod, yup, joi, or none',
+    });
   }
 
   // Check if output path ends with .d.ts
   if (!config.outputPath.endsWith('.d.ts')) {
-    throw new Error('Output path must end with .d.ts');
+    throw createValidationError('Output path must end with .d.ts', {
+      outputPath: config.outputPath,
+      expectedSuffix: '.d.ts',
+    });
   }
 }
 

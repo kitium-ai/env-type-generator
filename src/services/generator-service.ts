@@ -6,7 +6,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import type { Result } from '@kitiumai/types';
-import { compact, unique, uniqueBy } from '@kitiumai/utils-ts';
+import { compact, unique, uniqueBy, defaults } from '@kitiumai/utils-ts';
 import type { ILogger } from '@kitiumai/logger';
 import { getEnvTypeLogger } from '../logger.js';
 import type {
@@ -19,7 +19,7 @@ import { EnvParser } from '../parsers/env-parser.js';
 import { TypeGenerator } from '../generators/type-generator.js';
 import { ValidationGenerator } from '../generators/validation-generator.js';
 import { FileWatcher } from './file-watcher.js';
-import { GenerationError } from '../utils/errors.js';
+import { createGenerationError } from '../utils/errors.js';
 
 type GeneratorServiceDependencies = {
   parser?: EnvParser;
@@ -48,7 +48,8 @@ export class GeneratorService {
   /**
    * Generate types and validation schemas
    */
-  public generate(config: GeneratorConfig): Result<GeneratedOutput, GenerationError> {
+  public generate(config: GeneratorConfig): Result<GeneratedOutput, Error> {
+    const startTime = Date.now();
     const options = this.buildGeneratorOptions(config);
 
     try {
@@ -56,8 +57,12 @@ export class GeneratorService {
         envFiles: config.envFiles,
         outputPath: config.outputPath,
         validationOutput: config.validationOutput,
-        parseTypes: options.parseTypes,
-        strict: options.strict,
+        options: {
+          parseTypes: options.parseTypes,
+          strict: options.strict,
+          requiredVarsCount: options.requiredVars.length,
+          validationLib: options.validationLib,
+        },
       });
 
       const parsedFiles = this.parser.parseFiles(config.envFiles, {
@@ -90,10 +95,17 @@ export class GeneratorService {
         }
       }
 
+      const duration = Date.now() - startTime;
       this.logger.info('Env type generation completed', {
         outputPath: config.outputPath,
         validationOutput: config.validationOutput,
         runtimeHelperGenerated: Boolean(runtimeHelper),
+        duration,
+        variablesProcessed: allVariables.length,
+        performance: {
+          ms: duration,
+          variablesPerSecond: allVariables.length > 0 ? (allVariables.length / duration) * 1000 : 0,
+        },
       });
 
       return {
@@ -105,12 +117,39 @@ export class GeneratorService {
         },
       };
     } catch (error) {
-      const generationError =
-        error instanceof GenerationError ? error : new GenerationError((error as Error).message);
+      const duration = Date.now() - startTime;
+      const caughtError = error instanceof Error ? error : new Error(String(error));
+      const hasEnvGenCode = caughtError.message.includes('env_gen/');
+
+      const generationError = hasEnvGenCode
+        ? caughtError
+        : createGenerationError(caughtError.message, {
+            outputPath: config.outputPath,
+            duration,
+          });
+
+      const errorMetadata = {
+        code:
+          'code' in generationError
+            ? (generationError as unknown as Record<string, unknown>)['code']
+            : undefined,
+        kind:
+          'kind' in generationError
+            ? (generationError as unknown as Record<string, unknown>)['kind']
+            : undefined,
+        severity:
+          'severity' in generationError
+            ? (generationError as unknown as Record<string, unknown>)['severity']
+            : undefined,
+      };
 
       this.logger.error(
         'Env type generation failed',
-        { outputPath: config.outputPath },
+        {
+          outputPath: config.outputPath,
+          duration,
+          ...errorMetadata,
+        },
         generationError
       );
 
@@ -175,9 +214,18 @@ export class GeneratorService {
    * Write content to file
    */
   private writeFile(filePath: string, content: string): void {
+    const startTime = Date.now();
+
     try {
       const absolutePath = path.resolve(filePath);
       const directory = path.dirname(absolutePath);
+
+      this.logger.debug('Writing generated file', {
+        filePath: absolutePath,
+        directory,
+        contentSize: content.length,
+        lines: content.split('\n').length,
+      });
 
       // Ensure directory exists
       if (!fs.existsSync(directory)) {
@@ -186,18 +234,43 @@ export class GeneratorService {
 
       // Write file
       fs.writeFileSync(absolutePath, content, 'utf-8');
-      this.logger.debug('Wrote generated file', { filePath: absolutePath });
+
+      const duration = Date.now() - startTime;
+      this.logger.debug('File written successfully', {
+        filePath: absolutePath,
+        duration,
+        bytes: Buffer.byteLength(content, 'utf-8'),
+      });
     } catch (error) {
-      throw new GenerationError(`Failed to write file ${filePath}: ${(error as Error).message}`);
+      const duration = Date.now() - startTime;
+      throw createGenerationError(`Failed to write file ${filePath}: ${(error as Error).message}`, {
+        filePath,
+        error: (error as Error).message,
+        duration,
+      });
     }
   }
 
   private buildGeneratorOptions(config: GeneratorConfig): GeneratorOptions {
+    // Use defaults() to apply default values for optional configuration properties
+    const configWithDefaults = defaults(
+      {
+        parseTypes: config.parseTypes,
+        validationLib: config.validationLib,
+        strict: config.strict,
+      },
+      {
+        parseTypes: true,
+        validationLib: 'none' as const,
+        strict: false,
+      }
+    );
+
     return {
-      parseTypes: config.parseTypes ?? true,
-      validationLib: config.validationLib ?? 'none',
+      parseTypes: configWithDefaults.parseTypes ?? true,
+      validationLib: configWithDefaults.validationLib ?? 'none',
+      strict: configWithDefaults.strict ?? false,
       requiredVars: this.normalizeRequiredVars(config.requiredVars),
-      strict: config.strict ?? false,
     };
   }
 

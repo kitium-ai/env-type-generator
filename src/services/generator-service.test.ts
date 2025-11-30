@@ -4,25 +4,46 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { vi } from 'vitest';
-import { GeneratorService } from './generator-service';
-import { GeneratorConfig } from '../types';
+import { vi, beforeAll } from 'vitest';
 
+// Mock upstream logger package BEFORE any dynamic imports
+vi.mock('@kitiumai/logger', () => {
+  const mockLogger = {
+    info: vi.fn(),
+    debug: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    child: vi.fn().mockReturnThis(),
+  };
+  return {
+    initializeLogger: vi.fn(),
+    getLogger: vi.fn(() => mockLogger),
+  };
+});
+
+// Mock local logger wrapper
 vi.mock('../logger', () => {
   const mockLogger = {
     info: vi.fn(),
     debug: vi.fn(),
     error: vi.fn(),
+    warn: vi.fn(),
     child: vi.fn().mockReturnThis(),
   };
+  return { getEnvTypeLogger: vi.fn(() => mockLogger) };
+});
 
-  return {
-    getEnvTypeLogger: vi.fn(() => mockLogger),
-  };
+// Will be assigned via dynamic import to ensure mocks apply first
+let generatorServiceClass: any; // Type imported dynamically
+type GeneratorConfig = any; // Use any for test-only typing simplicity
+
+beforeAll(async () => {
+  ({ GeneratorService: generatorServiceClass } = await import('./generator-service'));
+  // Types not needed at runtime; leaving as any
 });
 
 describe('GeneratorService', () => {
-  let service: GeneratorService;
+  let service: any;
   const testDir = path.join(__dirname, '../../test-service-fixtures');
   const envFile = path.join(testDir, '.env');
   const outputFile = path.join(testDir, 'env.d.ts');
@@ -51,7 +72,7 @@ describe('GeneratorService', () => {
   });
 
   beforeEach(() => {
-    service = new GeneratorService();
+    service = new generatorServiceClass();
     fs.writeFileSync(envFile, 'DATABASE_URL=postgresql://localhost\nAPI_KEY=secret');
   });
 

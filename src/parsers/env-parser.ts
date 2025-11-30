@@ -5,8 +5,9 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { isEmail, isUrl } from '@kitiumai/utils-ts';
 import type { EnvVariable, ParsedEnvFile, ParserOptions } from '../types/index.js';
-import { FileNotFoundError, ParseError } from '../utils/errors.js';
+import { createFileNotFoundError, createParseError } from '../utils/errors.js';
 
 export class EnvParser {
   /**
@@ -16,11 +17,17 @@ export class EnvParser {
     const absolutePath = path.resolve(filePath);
 
     if (!fs.existsSync(absolutePath)) {
-      throw new FileNotFoundError(absolutePath);
+      throw createFileNotFoundError(absolutePath);
+    }
+
+    let content: string;
+    try {
+      content = fs.readFileSync(absolutePath, 'utf-8');
+    } catch {
+      throw createFileNotFoundError(absolutePath);
     }
 
     try {
-      const content = fs.readFileSync(absolutePath, 'utf-8');
       const variables = this.parseContent(content, options);
 
       return {
@@ -28,10 +35,11 @@ export class EnvParser {
         filePath: absolutePath,
       };
     } catch (error) {
-      if (error instanceof FileNotFoundError) {
-        throw error;
-      }
-      throw new ParseError(absolutePath, (error as Error).message);
+      const lineCount = content.split('\n').length;
+
+      throw createParseError(absolutePath, (error as Error).message, {
+        lineCount,
+      });
     }
   }
 
@@ -128,6 +136,7 @@ export class EnvParser {
 
   /**
    * Infer TypeScript type from value
+   * Uses validation utilities to detect semantic types like email and URL
    */
   public inferType(value: string): string {
     // Check for boolean
@@ -138,6 +147,15 @@ export class EnvParser {
     // Check for number
     if (/^-?\d+(\.\d+)?$/.test(value)) {
       return 'number';
+    }
+
+    // Check for semantic types using validation utilities
+    if (isEmail(value)) {
+      return 'string'; // Still string, but could be typed as 'email' in validation schema
+    }
+
+    if (isUrl(value)) {
+      return 'string'; // Still string, but represents a URL
     }
 
     // Check for JSON object/array

@@ -35,7 +35,19 @@ export class FileWatcher {
 
     const absolutePaths = files.map((file) => path.resolve(file));
 
-    this.logger.info('Starting file watcher', { files: absolutePaths, debounceMs });
+    this.logger.info('Starting file watcher', {
+      fileCount: absolutePaths.length,
+      files: absolutePaths,
+      debounceMs,
+      config: {
+        persistent: true,
+        ignoreInitial: true,
+        awaitWriteFinish: {
+          stabilityThreshold: 100,
+          pollInterval: 50,
+        },
+      },
+    });
 
     this.watcher = chokidar.watch(absolutePaths, {
       persistent: true,
@@ -55,6 +67,11 @@ export class FileWatcher {
       this.logger.error('File watcher encountered an error', { error: error.message }, error);
       throw new EnvTypeGeneratorError(`Watcher error: ${error.message}`);
     });
+
+    this.logger.info('File watcher initialized successfully', {
+      fileCount: absolutePaths.length,
+      status: 'watching',
+    });
   }
 
   /**
@@ -63,7 +80,17 @@ export class FileWatcher {
   private handleChange(filePath: string, callback: FileChangeCallback, debounceMs: number): void {
     const existingTimer = this.debounceTimers.get(filePath);
     if (existingTimer) {
+      this.logger.debug('Debounce timer reset for file', {
+        filePath,
+        debounceMs,
+        reason: 'file changed again during debounce period',
+      });
       clearTimeout(existingTimer);
+    } else {
+      this.logger.debug('File change detected, scheduling callback', {
+        filePath,
+        debounceMs,
+      });
     }
 
     const timer = setTimeout(() => {
@@ -75,16 +102,38 @@ export class FileWatcher {
   }
 
   /**
-   * Execute callback safely
+   * Execute callback safely with performance tracking
    */
   private async executeCallback(callback: FileChangeCallback, filePath: string): Promise<void> {
+    const startTime = Date.now();
+
     try {
+      this.logger.debug('Executing watcher callback', { filePath });
       await callback(filePath);
+      const duration = Date.now() - startTime;
+
+      this.logger.info('Watcher callback completed successfully', {
+        filePath,
+        duration,
+        performance: {
+          ms: duration,
+        },
+      });
     } catch (error) {
-      this.logger.error('Watcher callback failed', { filePath }, error as Error);
-      throw new EnvTypeGeneratorError(
-        `Callback execution failed for ${filePath}: ${(error as Error).message}`
+      const duration = Date.now() - startTime;
+      const errorMessage = error instanceof Error ? error.message : String(error);
+
+      this.logger.error(
+        'Watcher callback failed',
+        {
+          filePath,
+          duration,
+          error: errorMessage,
+        },
+        error as Error
       );
+
+      throw new EnvTypeGeneratorError(`Callback execution failed for ${filePath}: ${errorMessage}`);
     }
   }
 
@@ -93,10 +142,14 @@ export class FileWatcher {
    */
   public async stop(): Promise<void> {
     if (!this.watcher) {
+      this.logger.debug('File watcher is not running, nothing to stop');
       return;
     }
 
-    this.logger.info('Stopping file watcher');
+    const timerCount = this.debounceTimers.size;
+    this.logger.info('Stopping file watcher', {
+      activeTimers: timerCount,
+    });
 
     // Clear all debounce timers
     for (const timer of this.debounceTimers.values()) {
@@ -106,6 +159,10 @@ export class FileWatcher {
 
     await this.watcher.close();
     this.watcher = null;
+
+    this.logger.info('File watcher stopped successfully', {
+      cleanedUpTimers: timerCount,
+    });
   }
 
   /**

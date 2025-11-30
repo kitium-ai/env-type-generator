@@ -91,6 +91,64 @@ const poolSize: number = env.DATABASE_POOL_SIZE; // Parsed as number
 const invalid = process.env.DATABSE_URL; // Error: Property 'DATABSE_URL' does not exist
 ```
 
+## Usage & Tree-Shaking
+
+`@kitiumai/env-type-generator` is designed with **optimal tree-shaking** in mind. The package is side-effect free (`"sideEffects": false`) and provides granular subpath exports for minimal bundle size.
+
+### Import Patterns
+
+**Import only what you need** to minimize bundle size:
+
+```typescript
+// ✅ Granular imports (tree-shakable)
+import { GeneratorService } from '@kitiumai/env-type-generator/services/generator-service';
+import { EnvParser } from '@kitiumai/env-type-generator/parsers';
+import { TypeGenerator } from '@kitiumai/env-type-generator/generators/type-generator';
+import { ValidationGenerator } from '@kitiumai/env-type-generator/generators/validation-generator';
+import { FileWatcher } from '@kitiumai/env-type-generator/services/file-watcher';
+import type { EnvVariable, GeneratorConfig } from '@kitiumai/env-type-generator/types';
+import { EnvTypeGeneratorError } from '@kitiumai/env-type-generator/utils/errors';
+
+// ✅ Barrel import (all exports)
+import { GeneratorService, EnvParser } from '@kitiumai/env-type-generator';
+```
+
+### Available Subpath Exports
+
+| Subpath                                                        | Exports                         |
+| -------------------------------------------------------------- | ------------------------------- |
+| `@kitiumai/env-type-generator`                                 | All exports (barrel)            |
+| `@kitiumai/env-type-generator/generators`                      | TypeGenerator (alias)           |
+| `@kitiumai/env-type-generator/generators/type-generator`       | TypeGenerator class             |
+| `@kitiumai/env-type-generator/generators/validation-generator` | ValidationGenerator class       |
+| `@kitiumai/env-type-generator/parsers`                         | EnvParser class                 |
+| `@kitiumai/env-type-generator/services`                        | GeneratorService (alias)        |
+| `@kitiumai/env-type-generator/services/generator-service`      | GeneratorService class          |
+| `@kitiumai/env-type-generator/services/file-watcher`           | FileWatcher class               |
+| `@kitiumai/env-type-generator/types`                           | TypeScript types and interfaces |
+| `@kitiumai/env-type-generator/utils`                           | Error classes (alias)           |
+| `@kitiumai/env-type-generator/utils/errors`                    | Error classes                   |
+| `@kitiumai/env-type-generator/logger`                          | Logger utilities                |
+
+### Programmatic API
+
+Use the package programmatically in your build scripts:
+
+```typescript
+import { GeneratorService } from '@kitiumai/env-type-generator/services/generator-service';
+
+const generator = new GeneratorService({
+  envFiles: ['.env', '.env.local'],
+  outputPath: 'src/types/env.d.ts',
+  validationLib: 'zod',
+  validationOutput: 'src/config/env.validator.ts',
+  parseTypes: true,
+  strict: true,
+});
+
+await generator.generate();
+```
+
 ## Usage
 
 ### CLI Options

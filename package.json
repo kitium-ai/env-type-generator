@@ -1,6 +1,6 @@
 {
   "name": "@kitiumai/env-type-generator",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Zero-config TypeScript type generator for .env files with Zod validation, watch mode, and IDE autocomplete support",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -192,10 +192,10 @@
     "node": ">=16.0.0"
   },
   "devDependencies": {
-    "@kitiumai/config": "^2.0.0",
-    "@kitiumai/lint": "^2.0.0",
+    "@kitiumai/config": "^2.0.1",
+    "@kitiumai/lint": "^2.0.1",
     "@kitiumai/scripts": "^1.0.0",
-    "@kitiumai/vitest-helpers": "^2.0.0",
+    "@kitiumai/vitest-helpers": "^2.0.1",
     "@types/node": "^24.10.1",
     "@vitest/coverage-v8": "^2.1.8",
     "eslint": "^9.15.0",
@@ -206,9 +206,10 @@
     "vitest": "^2.1.8"
   },
   "dependencies": {
-    "@kitiumai/logger": "^2.0.0",
-    "@kitiumai/types": "^2.0.0",
+    "@kitiumai/logger": "^2.0.1",
+    "@kitiumai/types": "^2.0.1",
     "@kitiumai/utils-ts": "^2.0.1",
+    "@kitiumai/error": "^2.0.1",
     "chokidar": "^3.6.0",
     "commander": "^14.0.2",
     "dotenv": "^17.0.0",

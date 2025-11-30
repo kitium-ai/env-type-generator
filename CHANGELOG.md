@@ -5,6 +5,12 @@ All notable changes to `@kitiumai/env-type-generator` will be documented in this
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.1] - 2025-11-24
+
+### Changed
+
+bumped patch version of kitiumai packages
+
 ## [2.0.0] - 2025-11-24
 
 ### Changed

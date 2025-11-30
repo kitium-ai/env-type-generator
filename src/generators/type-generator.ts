@@ -4,7 +4,8 @@
  */
 
 import type { EnvVariable, TypeInfo, GeneratorOptions } from '../types/index.js';
-import { GenerationError } from '../utils/errors.js';
+import { camelCase, snakeCase } from '@kitiumai/utils-ts';
+import { createGenerationError } from '../utils/errors.js';
 import { EnvParser } from '../parsers/env-parser.js';
 
 export class TypeGenerator {
@@ -22,7 +23,10 @@ export class TypeGenerator {
       const typeInfos = this.buildTypeInfos(variables, options);
       return this.buildTypeDefinition(typeInfos);
     } catch (error) {
-      throw new GenerationError((error as Error).message);
+      throw createGenerationError((error as Error).message, {
+        variableCount: variables.length,
+        parseTypes: options.parseTypes,
+      });
     }
   }
 
@@ -45,6 +49,8 @@ export class TypeGenerator {
         required: isRequired || options.strict,
         parsed: options.parseTypes,
         comment: variable.comment,
+        camelCaseName: camelCase(variable.key),
+        snakeCaseName: snakeCase(variable.key),
       };
     });
   }
@@ -68,8 +74,17 @@ export class TypeGenerator {
 
     for (const typeInfo of typeInfos) {
       // Add comment if exists
+      const comments: string[] = [];
       if (typeInfo.comment) {
-        lines.push(`    /** ${typeInfo.comment} */`);
+        comments.push(typeInfo.comment);
+      }
+      // Add case convention info
+      if (typeInfo.camelCaseName && typeInfo.camelCaseName !== typeInfo.name.toLowerCase()) {
+        comments.push(`camelCase: ${typeInfo.camelCaseName}, snakeCase: ${typeInfo.snakeCaseName}`);
+      }
+
+      if (comments.length > 0) {
+        lines.push(`    /** ${comments.join(' | ')} */`);
       }
 
       // Add type definition

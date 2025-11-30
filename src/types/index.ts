@@ -30,6 +30,8 @@ export type TypeInfo = {
   required: boolean;
   parsed: boolean;
   comment?: string;
+  camelCaseName?: string;
+  snakeCaseName?: string;
 };
 
 export type GeneratedOutput = {
